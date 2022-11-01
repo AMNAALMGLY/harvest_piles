@@ -11,7 +11,8 @@ import wandb
 import os
 
 from harvest_piles.configs import args
-from harvest_piles.dataset.data import HarvestPatches
+from harvest_piles.dataset.data import HarvestPatches, generate_random_splits, generate_stratified_splits, \
+    make_balanced_weights
 from harvest_piles.src.trainer import Trainer
 from harvest_piles.src.utils import init_model, get_model, get_full_experiment_name
 
@@ -79,26 +80,44 @@ def main(args):
     wandb.config.update(data_params)
 
     # Todo: define dataset /dataloader
-    dataset = HarvestPatches(**data_params)
+
     # Creating data indices for training and validation splits:
+    dataset = HarvestPatches(**data_params)
+    if args.random_split:
 
-    dataset_size = len(dataset)
-    validation_split = 0.2
-    indices = list(range(dataset_size))
-    split = int(np.floor(validation_split * dataset_size))
+        train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
 
-    np.random.seed(123)
-    np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
 
-    # Creating PT data samplers and loaders:
-    train_sampler = SubsetRandomSampler(train_indices)
-    valid_sampler = SubsetRandomSampler(val_indices)
+    else:
 
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                               sampler=train_sampler)
-    validation_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                                    sampler=valid_sampler)
+        x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
+                                                                              dataset.data['piles'].astype(bool),
+                                                                              val_size=0.2, test_size=0.2)
+        train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
+        val = HarvestPatches(**data_params, X=x_val, y=y_val)
+        test = HarvestPatches(**data_params, X=x_test, y=y_test)
+    # dataset_size = len(dataset)
+    # validation_split = 0.2
+    # indices = list(range(dataset_size))
+    # split = int(np.floor(validation_split * dataset_size))
+    #
+    # np.random.seed(123)
+    # np.random.shuffle(indices)
+    # train_indices, val_indices = indices[split:], indices[:split]
+    #
+    # # Creating PT data samplers and loaders:
+    # train_sampler = SubsetRandomSampler(train_indices)
+    # valid_sampler = SubsetRandomSampler(val_indices)
+
+    weights = make_balanced_weights(dataset.data)
+    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
+
+    train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
+                                               sampler=sampler)
+    validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+                                                    shuffle=False)
+    test_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+                                              shuffle=False)
     # for i in train_loader:
     #     print(i)
     #     break
@@ -117,7 +136,7 @@ def main(args):
     # encoder=Encoder(self_attn=args.self_attn,**model_dict)
     # config = {"lr": args.lr, "wd": args.conv_reg}  # you can remove this now it is for raytune
     best_loss, best_path = setup_experiment(encoder, train_loader, validation_loader, args,
-                                                   batcher_test=None)
+                                                   batcher_test=test_loader)
 
 
 if __name__ == "__main__":

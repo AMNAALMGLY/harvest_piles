@@ -29,6 +29,7 @@ args = Namespace(
     conv_reg=0.00001,
 
     # data
+    random_split=True,
     image_size=64,
     in_channels=3,
     data_path='/atlas/u/amna/harvest_piles/ethiopia_cogs_split_4326_64',

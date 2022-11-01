@@ -245,7 +245,7 @@ class Trainer:
                 wandb.log({"Epoch_valid_loss": avg_valid_loss, 'epoch': epoch})
 
                 # AGAINST ML RULES : moniter test values
-                # r2_test, test_loss = self.test(batcher_test)
+                r2_test, test_loss = self.test(batcher_test)
 
 
                 # early stopping with loss
@@ -325,24 +325,24 @@ class Trainer:
         # TODO implement overfit batches
         # TODO savelast
 
-    #     def test(self, batcher_test):
+    def test(self, batcher_test):
 
-    #      with torch.no_grad():
-    #             test_step = 0
-    #             test_epoch_loss = 0
-    #             print('--------------------------Testing-------------------- ')
-    #             self.model.eval()
-    #             r2_test = []
-    #             for record in batcher_test:
-    #                 test_epoch_loss += self.test_step(record).item()
-    #                 test_step += 1
+             with torch.no_grad():
+                    test_step = 0
+                    test_epoch_loss = 0
+                    print('--------------------------Testing-------------------- ')
+                    self.model.eval()
+                    r2_test = []
+                    for record in batcher_test:
+                        test_epoch_loss += self.test_step(record).item()
+                        test_step += 1
 
-    #             for i, m in enumerate(self.metric):
-    #                 r2_test.append((m.compute())
+                    for i, m in enumerate(self.metric):
+                        r2_test.append((m.compute()))
 
-    #                 # wandb.log({f'{self.metric_str[i]} Test': r2_test[i], })
+                        wandb.log({f'{self.metric_str[i]} Test': r2_test[i], })
 
-    #      return r2_test[0], (test_epoch_loss / test_step)
+             return r2_test[0], (test_epoch_loss / test_step)
 
 
     def configure_optimizers(self):

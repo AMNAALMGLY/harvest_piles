@@ -1,3 +1,6 @@
+
+from sklearn.model_selection import train_test_split
+
 from pathlib import Path
 import shutil
 import pandas as pd
@@ -29,7 +32,7 @@ class HarvestPatches(Dataset):
     """
 
     def __init__(self, datadir, csv_dir, augment, normalize, clipn, patch_size, label_name='piles',
-                 metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max']):
+                 metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max'], X=None, y=None):
         '''
         Args
 
@@ -41,6 +44,8 @@ class HarvestPatches(Dataset):
         self.datadir = datadir
 
         self.data = pd.read_csv(csv_dir)
+        self.X = X if X  else None
+        self.y = y if y   else None
         self.metalist = metalist
         self.label_name = label_name
         self.augment = augment
@@ -71,9 +76,12 @@ class HarvestPatches(Dataset):
             image = (image - mean) / std
 
         if self.augment:
-            image = Image.fromarray(image)
-            image = self.augment()(image)
+            print(image.shape)
+            image = torch.tensor(image)
+            print(image.shape)
+            image = self.transform()(image)
             image = image.numpy()
+            print(image.shape)
 
         locs = self.data.loc[idx, self.metalist].to_numpy()
         locs = locs.astype(np.float32)
@@ -89,11 +97,15 @@ class HarvestPatches(Dataset):
         # return example
         return image, labels
 
-    def augment(self):
+    def transform(self):
         # pass
         if self.augment:
-            aug = transforms.Compose([transforms.RandomRotation(90), transforms.RandomHorizontalFlip(),
-                                      transforms.ToTensor(), ])
+            aug = transforms.Compose([
+                # transforms.ToPILImage(),
+                # transforms.RandomRotation(30),
+                transforms.RandomHorizontalFlip(),
+                # transforms.ToTensor(),
+            ])
         return aug
 
     def load_geotiff(self, file):
@@ -106,3 +118,49 @@ class HarvestPatches(Dataset):
         image = np.stack(channels, axis=0).astype(np.float64)
 
         return image
+
+
+def make_balanced_weights(dataset):
+    '''
+    dataset: pd.Dataframe of imgs, labels('piles')
+    return
+    Weights: tensor of shape len(dataset)
+    '''
+    pos = 0
+    neg = 0
+    for idx, row in enumerate(dataset.iterrows()):
+
+        if dataset.loc[idx, 'piles'] != 0:
+
+            pos = pos + 1
+        else:
+            neg = neg + 1
+    print(pos, neg)
+    N = len(dataset)
+    weights = {'pos': N / pos, 'neg': N / neg}
+    weight = [0] * len(dataset)
+    for idx, row in enumerate(dataset.iterrows()):
+        weight[idx] = weights['pos'] if dataset.loc[idx, 'piles'] else weights['neg']
+    return torch.tensor(weight, dtype=torch.float32)
+
+
+def generate_random_splits(dataset, val_size, test_size):
+    train_size = int((1 - val_size - test_size) * len(dataset))
+    val_size = int(val_size * len(dataset))
+    test_size = len(dataset) - (train_size + val_size)
+    train, val_test = torch.utils.data.random_split(dataset, [train_size, (test_size + val_size)])
+    val, test = torch.utils.data.random_split(val_test, [val_size, test_size])
+    return train, val, test
+
+
+def generate_stratified_splits(X, y, val_size, test_size, stratify=False):
+    # todo: does test set need to have the same distribution as train? No => need a fix
+    if stratify:
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=(val_size + test_size), stratify=y)
+        test_size = int(len(X) * test_size)
+        X_val, X_test, y_val, y_test = train_test_split(X_val, y_val, test_size=test_size, stratify=y_val)
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
+        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=test_size, stratify=y_train)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
