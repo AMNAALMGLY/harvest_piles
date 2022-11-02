@@ -7,7 +7,6 @@ import torch
 import numpy as np
 import wandb
 
-
 import os
 
 from configs import args
@@ -47,10 +46,10 @@ def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None)
 
     best_loss, path = trainer.fit(train_loader, valid_loader, batcher_test, max_epochs=args.max_epochs, gpus=args.gpus,
                                   args=args)
-    #score = trainer.test(batcher_test)
+    # score = trainer.test(batcher_test)
 
     return best_loss, path, \
-           #score
+        # score
 
 
 def main(args):
@@ -97,6 +96,7 @@ def main(args):
         train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
         val = HarvestPatches(**data_params, X=x_val, y=y_val)
         test = HarvestPatches(**data_params, X=x_test, y=y_test)
+        train_df = train.data
 
     # dataset_size = len(dataset)
     # validation_split = 0.2
@@ -110,7 +110,6 @@ def main(args):
     # # Creating PT data samplers and loaders:
     # train_sampler = SubsetRandomSampler(train_indices)
     # valid_sampler = SubsetRandomSampler(val_indices)
-
 
     weights = make_balanced_weights(train_df)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
@@ -139,13 +138,11 @@ def main(args):
     # encoder=Encoder(self_attn=args.self_attn,**model_dict)
     # config = {"lr": args.lr, "wd": args.conv_reg}  # you can remove this now it is for raytune
     best_loss, best_path = setup_experiment(encoder, train_loader, validation_loader, args,
-                                                   batcher_test=test_loader)
+                                            batcher_test=test_loader)
 
 
 if __name__ == "__main__":
     wandb.init(project="harvest_piles", entity="amna", config={})
     print('GPUS:', torch.cuda.device_count())
-
-
 
     main(args)
