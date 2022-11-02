@@ -140,7 +140,9 @@ def main(args):
 
 
 if __name__ == "__main__":
-    wandb.init(project=args.wandp, entity=args.entity, config={})
+    wandb.init(project="harvest_piles", entity="amna", config={})
     print('GPUS:', torch.cuda.device_count())
+
+
 
     main(args)
