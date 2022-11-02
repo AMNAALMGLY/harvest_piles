@@ -1,17 +1,16 @@
 # utils
 import copy
 import math
+
+import numpy as np
+import torch
 import os
 import random
 import warnings
 from typing import Optional
+#from configs import args
 
-import numpy as np
-import torch
-
-# from configs import args
-
-# from models.resnet import resnet18, resnet34, resnet50, resnext50_32x4d
+from src.models import resnet18, resnet34, resnet50, resnext50_32x4d
 
 import torch.nn.functional as F
 import torchmetrics
