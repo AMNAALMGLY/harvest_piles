@@ -96,7 +96,7 @@ class HarvestPatches(Dataset):
         assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
         # assert locs.shape == (4,), 'locs shape is wrong'
 
-        example = {'images': image, 'locs': locs, 'labels': labels}
+        #example = {'images': image, 'locs': locs, 'labels': labels}
 
         # return example
         return image, labels
