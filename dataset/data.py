@@ -43,15 +43,15 @@ class HarvestPatches(Dataset):
         self.datadir = datadir
 
         self.data = pd.read_csv(csv_dir)
-        self.X = X if X else None
-        self.y = y if y else None
+        self.X = X
+        self.y = y
         self.metalist = metalist
         self.label_name = label_name
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
         self.patch_size = patch_size
-        if self.X and self.y:
+        if self.X is not None and self.y is not None:
             self.data=pd.DataFrame(columns=['filename','piles'])
             self.data['filename']=self.X
             self.data['piles']=self.y
