@@ -52,7 +52,7 @@ class HarvestPatches(Dataset):
         self.clipn = clipn
         self.patch_size = patch_size
         if self.X is not None and self.y is not None:
-            self.data=pd.DataFrame(columns=['filename','piles'])
+            self.data=pd.DataFrame(columns=['filename','piles'],index=range(len(self.X)))
             self.data['filename']=self.X
             self.data['piles']=self.y
 
