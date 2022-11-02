@@ -11,7 +11,7 @@ args = Namespace(
     # Model
 
     model_name='resnet18',
-    hs_weight_init='same',  # [same, samescaled,random]
+    hs_weight_init='samescaled',  # [same, samescaled,random]
     model_init='imagenet',
     imagenet_weight_path='./imagenet_resnet18_tensorpack.npz',
 
@@ -26,15 +26,14 @@ args = Namespace(
     patience=20,
     lr=.001,
 
-    conv_reg=0.00001,
+    conv_reg=0.01,
 
     # data
-    random_split=True,
     image_size=64,
     in_channels=3,
-    data_path='/atlas/u/amna/harvest_piles/ethiopia_cogs_split_4326_64',
+    data_path='/atlas2/u/amna/harvest_piles/ethiopia_cogs_split_4326_64',
 
-    labels_path='/atlas/u/amna/harvest_piles/imgs_64',
+    labels_path='/atlas2/u/amna/harvest_piles/imgs_64.csv',
 
     label_name='piles',
 
@@ -53,7 +52,7 @@ args = Namespace(
     num_outputs=1,
     resume=None,
 
-    accumlation_steps=2,
+    accumlation_steps=1,
     metric=['f1'],
 
     # Visualization

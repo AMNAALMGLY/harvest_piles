@@ -14,8 +14,8 @@ from tqdm import tqdm
 import wandb
 from pl_bolts import optimizers
 
-from harvest_piles.configs import args
-from harvest_piles.src.utils import Metric
+from configs import args
+from src.utils import Metric
 
 patience = args.patience
 

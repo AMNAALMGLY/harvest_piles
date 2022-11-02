@@ -10,11 +10,11 @@ import wandb
 
 import os
 
-from harvest_piles.configs import args
-from harvest_piles.dataset.data import HarvestPatches, generate_random_splits, generate_stratified_splits, \
+from configs import args
+from dataset.data import HarvestPatches, generate_random_splits, generate_stratified_splits, \
     make_balanced_weights
-from harvest_piles.src.trainer import Trainer
-from harvest_piles.src.utils import init_model, get_model, get_full_experiment_name
+from src.trainer import Trainer
+from src.utils import init_model, get_model, get_full_experiment_name
 
 
 def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None):
