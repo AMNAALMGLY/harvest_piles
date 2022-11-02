@@ -89,9 +89,8 @@ class HarvestPatches(Dataset):
 
         # locs = self.data.loc[idx, self.metalist].to_numpy()
         # locs = locs.astype(np.float32)
-        labels = self.data.loc[idx, self.label_name].astype(np.float32)
-        # convert to binary
-        labels = labels.astype(bool)
+        labels = self.data.loc[idx, self.label_name].astype(bool)
+
         # test
         assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
         # assert locs.shape == (4,), 'locs shape is wrong'
