@@ -51,6 +51,11 @@ class HarvestPatches(Dataset):
         self.normalize = normalize
         self.clipn = clipn
         self.patch_size = patch_size
+        if self.X and self.y:
+            self.data=pd.DataFrame(columns=['filename','piles'])
+            self.data['filename']=self.X
+            self.data['piles']=self.y
+
         # self.metadata
 
     def __len__(self):
@@ -82,14 +87,14 @@ class HarvestPatches(Dataset):
             image = image.numpy()
             print(image.shape)
 
-        locs = self.data.loc[idx, self.metalist].to_numpy()
-        locs = locs.astype(np.float32)
+        # locs = self.data.loc[idx, self.metalist].to_numpy()
+        # locs = locs.astype(np.float32)
         labels = self.data.loc[idx, self.label_name].astype(np.float32)
         # convert to binary
         labels = labels.astype(bool)
         # test
         assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
-        assert locs.shape == (4,), 'locs shape is wrong'
+        # assert locs.shape == (4,), 'locs shape is wrong'
 
         example = {'images': image, 'locs': locs, 'labels': labels}
 

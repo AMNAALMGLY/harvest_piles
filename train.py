@@ -86,6 +86,7 @@ def main(args):
     if args.random_split:
 
         train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
+        train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
 
 
     else:
@@ -96,6 +97,7 @@ def main(args):
         train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
         val = HarvestPatches(**data_params, X=x_val, y=y_val)
         test = HarvestPatches(**data_params, X=x_test, y=y_test)
+
     # dataset_size = len(dataset)
     # validation_split = 0.2
     # indices = list(range(dataset_size))
@@ -109,7 +111,8 @@ def main(args):
     # train_sampler = SubsetRandomSampler(train_indices)
     # valid_sampler = SubsetRandomSampler(val_indices)
 
-    weights = make_balanced_weights(dataset.data)
+
+    weights = make_balanced_weights(train_df)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
 
     train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
