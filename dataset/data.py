@@ -1,4 +1,3 @@
-
 from sklearn.model_selection import train_test_split
 
 from pathlib import Path
@@ -44,8 +43,8 @@ class HarvestPatches(Dataset):
         self.datadir = datadir
 
         self.data = pd.read_csv(csv_dir)
-        self.X = X if X  else None
-        self.y = y if y   else None
+        self.X = X if X else None
+        self.y = y if y else None
         self.metalist = metalist
         self.label_name = label_name
         self.augment = augment
@@ -63,8 +62,8 @@ class HarvestPatches(Dataset):
         # the metadata
         # the labels
         img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
-
         image = self.load_geotiff(img_filename)
+
         # preprocessing
         if self.clipn:
             image = np.clip(image, a_min=0., a_max=1e20)
@@ -111,6 +110,8 @@ class HarvestPatches(Dataset):
     def load_geotiff(self, file):
 
         ds = gdal.Open(file)
+        if not ds:
+            print(file)
         r, g, b = np.array(ds.GetRasterBand(1).ReadAsArray()), np.array(ds.GetRasterBand(2).ReadAsArray()), np.array(
             ds.GetRasterBand(3).ReadAsArray())
 
