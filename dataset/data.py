@@ -85,8 +85,8 @@ class HarvestPatches(Dataset):
             image = image.numpy()
             print(image.shape)
 
-        # locs = self.data.loc[idx, self.metalist].to_numpy()
-        # locs = locs.astype(np.float32)
+        locs = self.data.loc[idx, self.metalist].to_numpy()
+        locs = locs.astype(np.float32)
         labels = self.data.loc[idx, self.label_name]
         if not isinstance(labels, bool):
             labels = labels.astype(np.bool_)
