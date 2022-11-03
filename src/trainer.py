@@ -93,47 +93,48 @@ class Trainer:
 
     def _shared_step(self, batch, metric_fn):
 
-        # x = defaultdict()
+        trainloss=0
 
         x = torch.tensor(batch[0][:, :, :, :])
 
-
+        if x is not None:
         # lats = batch[2][:, :2]
         # longs = batch[2][:, 2:]
 
-        label = batch[1]
-        target = torch.tensor(label, )
-        target = target.type_as(self.typeAs.weight)
+            label = batch[1]
+            target = torch.tensor(label, )
+            target = target.type_as(self.typeAs.weight)
 
-        x = x.type_as(self.typeAs.weight)
+            x = x.type_as(self.typeAs.weight)
 
-        # reshaping
+            # reshaping
 
 
-        outputs = self.model(x)
-        outputs = outputs.squeeze(dim=-1)
+            outputs = self.model(x)
+            outputs = outputs.squeeze(dim=-1)
 
-        # Loss
+            # Loss
 
-        trainloss = self.criterion(outputs, target)
+            trainloss = self.criterion(outputs, target)
 
-        # Metric calculation
-        if self.loss_type == 'classification' and self.num_outputs > 1:
+            # Metric calculation
+            if self.loss_type == 'classification' and self.num_outputs > 1:
 
-            preds = nn.functional.softmax(outputs, dim=1)
-            target = target.long()
+                preds = nn.functional.softmax(outputs, dim=1)
+                target = target.long()
 
-        elif self.loss_type == 'classification' and self.num_outputs == 1:
-            preds = torch.sigmoid(outputs, )
-            target = target.long()
+            elif self.loss_type == 'classification' and self.num_outputs == 1:
+                preds = torch.sigmoid(outputs, )
+                target = target.long()
 
+            else:
+                preds = torch.tensor(outputs, device=args.gpus)
+
+            for fn in metric_fn:
+                fn.to(args.gpus)
+                fn.update(preds, target)
         else:
-            preds = torch.tensor(outputs, device=args.gpus)
-
-        for fn in metric_fn:
-            fn.to(args.gpus)
-            fn.update(preds, target)
-
+            print('found nan img')
         return  trainloss
 
     def training_step(self, batch, ):
