@@ -52,9 +52,7 @@ class HarvestPatches(Dataset):
         self.clipn = clipn
         self.patch_size = patch_size
         if self.X is not None and self.y is not None:
-            self.data=pd.DataFrame(columns=['filename','piles'],index=range(len(self.X)))
-            self.data['filename']=self.X
-            self.data['piles']=self.y
+            self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
 
         # self.metadata
 
@@ -89,13 +87,15 @@ class HarvestPatches(Dataset):
 
         # locs = self.data.loc[idx, self.metalist].to_numpy()
         # locs = locs.astype(np.float32)
-        labels = self.data.loc[idx, self.label_name].astype(np.bool_)
+        labels = self.data.loc[idx, self.label_name]
+        if not isinstance(labels, bool):
+            labels = labels.astype(np.bool_)
 
         # test
         assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
         # assert locs.shape == (4,), 'locs shape is wrong'
 
-        #example = {'images': image, 'locs': locs, 'labels': labels}
+        # example = {'images': image, 'locs': locs, 'labels': labels}
 
         # return example
         return image, labels
