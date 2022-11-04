@@ -62,7 +62,8 @@ class HarvestPatches(Dataset):
         # the labels
         img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
         image = self.load_geotiff(img_filename)
-
+        if image is  None:
+            image=np.empty((3,self.patch_size,self.patch_size))
         # preprocessing
         if self.clipn:
             image = np.clip(image, a_min=0., a_max=1e20)
@@ -110,7 +111,7 @@ class HarvestPatches(Dataset):
 
         ds = gdal.Open(file)
         if not ds:
-            print(file)
+            return None
         r, g, b = np.array(ds.GetRasterBand(1).ReadAsArray()), np.array(ds.GetRasterBand(2).ReadAsArray()), np.array(
             ds.GetRasterBand(3).ReadAsArray())
 
