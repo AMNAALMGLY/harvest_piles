@@ -167,7 +167,7 @@ def generate_random_splits(dataset, val_size, test_size):
     return train, val, test
 
 
-def generate_stratified_splits(X, y, val_size, test_size, stratify=False):
+def generate_stratified_splits(X, y, val_size, test_size, stratify=True):
     # todo: does test set need to have the same distribution as train? No => need a fix
     if stratify:
         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=(val_size + test_size), stratify=y)
