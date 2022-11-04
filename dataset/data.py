@@ -1,5 +1,4 @@
-from sklearn.model_selection import train_test_split
-
+import glob
 from pathlib import Path
 import shutil
 import pandas as pd
@@ -39,6 +38,7 @@ class HarvestPatches(Dataset):
         csv_dir:str of csv file directory
         transform:boolean
         patch_size:int
+        TODO, provide path for validation and testing rather than splitting manually
         '''
         self.datadir = datadir
 
@@ -50,6 +50,7 @@ class HarvestPatches(Dataset):
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
+        self.means, self.stds = self.norm(datadir)
         self.patch_size = patch_size
         if self.X is not None and self.y is not None:
             self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
@@ -66,25 +67,24 @@ class HarvestPatches(Dataset):
         # the labels
         img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
         image = self.load_geotiff(img_filename)
-        if  image is None:
-            image=np.empty((3,self.patch_size,self.patch_size))
+
         # preprocessing
         if self.clipn:
             image = np.clip(image, a_min=0., a_max=1e20)
 
         if self.normalize:
             # per channel normalization
-            mean = image.mean(axis=0)
-            std = image.std(axis=0)
-            image = (image - mean) / std
+            self.means = self.means.reshape(-1, 1, 1)
+            self.stds = self.stds.reshape(-1, 1, 1)
+            image = (image - self.means) / self.stds
 
         if self.augment:
             image = torch.tensor(image)
             image = self.transform()(image)
             image = image.numpy()
 
-        locs = self.data.loc[idx, self.metalist].to_numpy()
-        locs = locs.astype(np.float32)
+        # locs = self.data.loc[idx, self.metalist].to_numpy()
+        # locs = locs.astype(np.float32)
         labels = self.data.loc[idx, self.label_name]
         if not isinstance(labels, bool):
             labels = labels.astype(np.bool_)
@@ -103,9 +103,10 @@ class HarvestPatches(Dataset):
         if self.augment:
             aug = transforms.Compose([
                 # transforms.ToPILImage(),
-                # transforms.RandomRotation(30),
+                transforms.ColorJitter(brightness=(0.05, 0.95), contrast=(0.05, 0.95)),
+                # transforms.RandomRotation(15),
                 transforms.RandomHorizontalFlip(),
-                transforms.ColorJitter(brightness=(0,0.5), contrast=(0.75,1.25), saturation=0, hue=0)
+
                 # transforms.ToTensor(),
             ])
         return aug
@@ -114,7 +115,7 @@ class HarvestPatches(Dataset):
 
         ds = gdal.Open(file)
         if not ds:
-            return None
+            print(file)
         r, g, b = np.array(ds.GetRasterBand(1).ReadAsArray()), np.array(ds.GetRasterBand(2).ReadAsArray()), np.array(
             ds.GetRasterBand(3).ReadAsArray())
 
@@ -122,6 +123,20 @@ class HarvestPatches(Dataset):
         image = np.stack(channels, axis=0).astype(np.float64)
 
         return image
+
+        # finidng the mean and standard deviation of all the images
+
+    def norm(self, imgs_root_dir):
+
+        files = glob.glob(os.path.join(imgs_root_dir, '*.tif'))
+        img_list = []
+        for file in files:
+            img = self.load_geotiff(file)
+            img_list.append(img)
+        imgs = np.stack(img_list, axis=0)
+        means = np.mean(imgs, axis=(0, 2, 3))
+        stds = np.std(imgs, axis=(0, 2, 3))
+        return means, stds
 
 
 def make_balanced_weights(dataset):
