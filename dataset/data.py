@@ -1,22 +1,17 @@
 import glob
-from pathlib import Path
-import shutil
+
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 import pickle
 import numpy as np
-import torchvision.transforms.functional as F
 from torchvision import transforms
-import tarfile
-import datetime
-import pytz
+
 import os
-from PIL import Image
-from tqdm import tqdm
+
 from osgeo import gdal
 
-
+from sklearn.model_selection import train_test_split
 class HarvestPatches(Dataset):
     """
     Patches of harvest piles each
