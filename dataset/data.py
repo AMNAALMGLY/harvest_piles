@@ -105,6 +105,7 @@ class HarvestPatches(Dataset):
                 # transforms.ToPILImage(),
                 # transforms.RandomRotation(30),
                 transforms.RandomHorizontalFlip(),
+                transforms.ColorJitter(brightness=(0,0.5), contrast=(0.75,1.25), saturation=0, hue=0)
                 # transforms.ToTensor(),
             ])
         return aug
