@@ -139,10 +139,27 @@ def _select_seed_randomly(min_seed_value: int = 0, max_seed_value: int = 255) ->
 
 def load_from_checkpoint(path, model):
     print(f'initializing model from pretrained weights at {path}')
-    ckpt = torch.load(path)
+    if 'moco' in path:
+        # moco pretrained models need some weights renaming
+        checkpoint = torch.load(path)
+        model.fc = torch.nn.Sequential()
+        loaded_dict = checkpoint['state_dict']
+        # print(loaded_dict.keys())
+        model_dict = model.state_dict()
+        del loaded_dict["module.queue"]
+        del loaded_dict["module.queue_ptr"]
+        # load state dict keys
+        for key_model, key_seco in zip(model_dict.keys(), loaded_dict.keys()):
+            #         #ignore first layer weights(use imagenet ones)
+            # if key_model=='conv1.weight':
+            #             continue
+            model_dict[key_model] = loaded_dict[key_seco]
+        model.load_state_dict(model_dict)
+    else:
+        ckpt = torch.load(path)
 
-    model.load_state_dict(torch.load(path))
-    model.eval()
+        model.load_state_dict(torch.load(path))
+    #model.eval()
     return model
 
 
