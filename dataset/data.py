@@ -8,7 +8,7 @@ import numpy as np
 from torchvision import transforms
 
 import os
-
+from configs import args
 from osgeo import gdal
 
 from sklearn.model_selection import train_test_split
@@ -24,7 +24,7 @@ class HarvestPatches(Dataset):
         each image is annotated with a location coordinate corners (x1,x2,y1,y2).
     """
 
-    def __init__(self, datadir, csv_dir, augment, normalize, clipn, patch_size, label_name='piles',
+    def __init__(self, datadir, csv_dir, augment, normalize, clipn, patch_size, label_name,resize=True,crop=True,resize_size=224,
                  metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max'], X=None, y=None):
         '''
         Args
@@ -45,13 +45,15 @@ class HarvestPatches(Dataset):
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
-        #self.means, self.stds = self.norm(datadir)
-        self.means, self.stds = np.array([102.08843886, 79.48795566, 50.89498866]), np.array(
-            [39.54905753, 25.98510947, 21.84003744])
+        self.means, self.stds = self.norm(datadir)
+        # self.means, self.stds = np.array([102.08843886, 79.48795566, 50.89498866]), np.array(
+        #     [39.54905753, 25.98510947, 21.84003744])
         self.patch_size = patch_size
         if self.X is not None and self.y is not None:
             self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
-
+        self.crop=crop
+        self.resize=resize
+        self.resize_size=resize_size
         # self.metadata
 
     def __len__(self):
@@ -68,8 +70,11 @@ class HarvestPatches(Dataset):
         if image is  None:
             image=np.empty((3,self.patch_size,self.patch_size))
         #preprocess the image to match the desired image size required
-        image=transforms.CenterCrop(self.patch_size)(image)
+        if self.crop:
+            image=transforms.CenterCrop(self.patch_size)(torch.tensor(image)).numpy()
 
+        if self.resize:
+            image = transforms.Resize(self.resize_size)(torch.tensor(image)).numpy()
         # preprocessing
         if self.clipn:
             image = np.clip(image, a_min=0., a_max=1e20)
@@ -149,19 +154,22 @@ def make_balanced_weights(dataset):
     '''
     pos = 0
     neg = 0
+    #preprocess the labels to boolen type
+    dataset[args.label_name]=dataset[args.label_name].astype(np.bool_)
     for idx, row in enumerate(dataset.iterrows()):
-
-        if dataset.loc[idx, 'piles'] != 0:
-
+        print('item',dataset.loc[idx, args.label_name])
+        if dataset.loc[idx, args.label_name]:
+            # print('in positives',pos)
             pos = pos + 1
         else:
+            # print('in negatives',neg)
             neg = neg + 1
     print(pos, neg)
     N = len(dataset)
     weights = {'pos': N / pos, 'neg': N / neg}
     weight = [0] * len(dataset)
     for idx, row in enumerate(dataset.iterrows()):
-        weight[idx] = weights['pos'] if dataset.loc[idx, 'piles'] else weights['neg']
+        weight[idx] = weights['pos'] if dataset.loc[idx, args.label_name] else weights['neg']
     return torch.tensor(weight, dtype=torch.float32)
 
 

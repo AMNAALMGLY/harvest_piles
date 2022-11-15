@@ -63,7 +63,7 @@ def main(args):
 
     # # save data_params for later use
     data_params = dict(datadir=args.data_path,
-                       csv_dir=args.labels_path, augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                       csv_dir=args.labels_path, augment=args.augment, normalize=args.normalize, clipn=args.clipn,label_name=args.label_name,
                        patch_size=args.image_size)
     #                    label_name=args.label_name,
     #                    nl_label=args.nl_label, include_buildings=args.include_buildings, batch_size=args.batch_size,
