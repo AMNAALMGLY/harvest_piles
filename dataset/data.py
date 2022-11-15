@@ -45,7 +45,9 @@ class HarvestPatches(Dataset):
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
-        self.means, self.stds = self.norm(datadir)
+        #self.means, self.stds = self.norm(datadir)
+        self.means, self.stds = np.array([102.08843886, 79.48795566, 50.89498866]), np.array(
+            [39.54905753, 25.98510947, 21.84003744])
         self.patch_size = patch_size
         if self.X is not None and self.y is not None:
             self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
