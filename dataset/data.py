@@ -62,8 +62,12 @@ class HarvestPatches(Dataset):
         # the labels
         img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
         image = self.load_geotiff(img_filename)
+
         if image is  None:
             image=np.empty((3,self.patch_size,self.patch_size))
+        #preprocess the image to match the desired image size required
+        image=transforms.CenterCrop(self.patch_size)(image)
+
         # preprocessing
         if self.clipn:
             image = np.clip(image, a_min=0., a_max=1e20)
