@@ -84,17 +84,17 @@ def main(args):
     # Creating data indices for training and validation splits:
     dataset = HarvestPatches(**data_params)
     train_params = dict(datadir=args.data_path,
-                        csv_dir='harvest_piles/train.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                        csv_dir='/atlas2/u/amna/harvest_piles/train.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                         label_name=args.label_name,
                         patch_size=args.image_size)
     train = HarvestPatches(**train_params)
     val_params = dict(datadir=args.data_path,
-                      csv_dir='harvest_piles/val.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                      csv_dir='/atlas2/u/amna/harvest_piles/val.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                       label_name=args.label_name,
                       patch_size=args.image_size)
     val = HarvestPatches(**val_params)
     test_params = dict(datadir=args.data_path,
-                       csv_dir='harvest_piles/test.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                       csv_dir='/atlas2/u/amna/harvest_piles/test.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                        label_name=args.label_name,
                        patch_size=args.image_size)
     test = HarvestPatches(**test_params)
