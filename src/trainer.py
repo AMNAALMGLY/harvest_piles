@@ -153,14 +153,14 @@ class Trainer:
 
         return loss
 
-    def predict(self, batch, model):
+    def predict(self,batch, model):
         if model is None:
             model = self.model
         outputs = model(batch)
         outputs = outputs.squeeze(dim=-1)
         preds = torch.sigmoid(outputs, )
 
-        preds = (preds >= 0.5).astype(torch.int32)
+        preds = (preds >= 0.5).type_as(batch)
 
         return preds
 

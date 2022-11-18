@@ -110,7 +110,6 @@ class HarvestPatches(Dataset):
         if self.augment:
             aug = transforms.Compose([
                 # transforms.ToPILImage(),
-                transforms.ColorJitter(brightness=(0.05, 0.95), contrast=(0.05, 0.95)),
                 # transforms.RandomRotation(15),
                 transforms.RandomHorizontalFlip(),
 
