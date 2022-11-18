@@ -131,11 +131,11 @@ def main(args):
     weights = make_balanced_weights(train_df)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
     train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-                                               sampler=sampler)
+                                               sampler=sampler,num_workers=, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
-                                                    shuffle=False)
+                                                    shuffle=False,pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
-                                              shuffle=False)
+                                              shuffle=False,pin_memory=True)
     # train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
     #                                            sampler=sampler)
     # validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
