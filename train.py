@@ -63,7 +63,8 @@ def main(args):
 
     # # save data_params for later use
     data_params = dict(datadir=args.data_path,
-                       csv_dir=args.labels_path, augment=args.augment, normalize=args.normalize, clipn=args.clipn,label_name=args.label_name,
+                       csv_dir=args.labels_path, augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                       label_name=args.label_name,
                        patch_size=args.image_size)
     #                    label_name=args.label_name,
     #                    nl_label=args.nl_label, include_buildings=args.include_buildings, batch_size=args.batch_size,
@@ -82,21 +83,37 @@ def main(args):
 
     # Creating data indices for training and validation splits:
     dataset = HarvestPatches(**data_params)
-    if args.random_split:
+    train_params = dict(datadir=args.data_path,
+                        csv_dir='harvest_piles/train.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                        label_name=args.label_name,
+                        patch_size=args.image_size)
+    train = HarvestPatches(**train_params)
+    val_params = dict(datadir=args.data_path,
+                      csv_dir='harvest_piles/val.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                      label_name=args.label_name,
+                      patch_size=args.image_size)
+    val = HarvestPatches(**val_params)
+    test_params = dict(datadir=args.data_path,
+                       csv_dir='harvest_piles/test.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                       label_name=args.label_name,
+                       patch_size=args.image_size)
+    test = HarvestPatches(**test_params)
 
-        train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
-        train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
-
-
-    else:
-
-        x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
-                                                                              dataset.data['piles'].astype(bool),
-                                                                              val_size=0.2, test_size=0.2)
-        train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
-        val = HarvestPatches(**data_params, X=x_val, y=y_val)
-        test = HarvestPatches(**data_params, X=x_test, y=y_test)
-        train_df = train.data
+    # if args.random_split:
+    #
+    #     train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
+    #     train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
+    #
+    #
+    # else:
+    #
+    #     x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
+    #                                                                           dataset.data['piles'].astype(bool),
+    #                                                                           val_size=0.2, test_size=0.2)
+    #     train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
+    #     val = HarvestPatches(**data_params, X=x_val, y=y_val)
+    #     test = HarvestPatches(**data_params, X=x_test, y=y_test)
+    #     train_df = train.data
 
     # dataset_size = len(dataset)
     # validation_split = 0.2
@@ -110,16 +127,21 @@ def main(args):
     # # Creating PT data samplers and loaders:
     # train_sampler = SubsetRandomSampler(train_indices)
     # valid_sampler = SubsetRandomSampler(val_indices)
-
+    train_df = train.data
     weights = make_balanced_weights(train_df)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
-
     train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
                                                sampler=sampler)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
                                                     shuffle=False)
-    test_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+    test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
                                               shuffle=False)
+    # train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
+    #                                            sampler=sampler)
+    # validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+    #                                                 shuffle=False)
+    # test_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+    #                                           shuffle=False)
     # for i in train_loader:
     #     print(i)
     #     break
