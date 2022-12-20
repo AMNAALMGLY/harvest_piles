@@ -14,8 +14,12 @@ from dataset.data import HarvestPatches, generate_random_splits, generate_strati
     make_balanced_weights
 from src.trainer import Trainer
 from src.utils import init_model, get_model, get_full_experiment_name
+import random
+from src.models_time import Encoder
 
-
+random.seed(0)
+np.random.seed(0)
+torch.manual_seed(0)
 def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None):
     '''
    setup the experiment paramaters
@@ -93,27 +97,29 @@ def main(args):
                       label_name=args.label_name,
                       patch_size=args.image_size)
     val = HarvestPatches(**val_params)
+    
+    #should be a fixed test set 
     test_params = dict(datadir=args.data_path,
                        csv_dir='/atlas2/u/amna/harvest_piles/test.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                        label_name=args.label_name,
                        patch_size=args.image_size)
     test = HarvestPatches(**test_params)
 
-    # if args.random_split:
-    #
-    #     train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
-    #     train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
-    #
-    #
-    # else:
-    #
-    #     x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
-    #                                                                           dataset.data['piles'].astype(bool),
-    #                                                                           val_size=0.2, test_size=0.2)
-    #     train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
-    #     val = HarvestPatches(**data_params, X=x_val, y=y_val)
-    #     test = HarvestPatches(**data_params, X=x_test, y=y_test)
-    #     train_df = train.data
+#     if args.random_split:
+    
+#         train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
+#         train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
+    
+    
+#     else:
+    
+#         x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
+#                                                                               dataset.data['piles'].astype(bool),
+#                                                                               val_size=0.2, test_size=0.2)
+#         train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
+#         val = HarvestPatches(**data_params, X=x_val, y=y_val)
+#         test = HarvestPatches(**data_params, X=x_test, y=y_test)
+#         train_df = train.data
 
     # dataset_size = len(dataset)
     # validation_split = 0.2
@@ -127,20 +133,26 @@ def main(args):
     # # Creating PT data samplers and loaders:
     # train_sampler = SubsetRandomSampler(train_indices)
     # valid_sampler = SubsetRandomSampler(val_indices)
+    
     train_df = train.data
     weights = make_balanced_weights(train_df)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
     train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-                                               sampler=sampler,num_workers=, pin_memory=True)
+                                               sampler=sampler,)
+                                              # num_workers=args.num_workers, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
-                                                    shuffle=False,pin_memory=True)
+                                                    #num_workers=args.num_workers,
+                                                    shuffle=False,)
+                                                    #pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
-                                              shuffle=False,pin_memory=True)
+                                              #num_workers=args.num_workers,
+                                              shuffle=False,)
+                                              #pin_memory=True)
     # train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
     #                                            sampler=sampler)
     # validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
     #                                                 shuffle=False)
-    # test_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
+    # test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
     #                                           shuffle=False)
     # for i in train_loader:
     #     print(i)
@@ -151,14 +163,22 @@ def main(args):
 
     encoder_params_filepath = os.path.join(dirpath, 'encoder_params.json')
     with open(encoder_params_filepath, 'w') as config_file:
-        # json.dump(saved_encoder_params, config_file, indent=4)
+         # save the encoder_params
         json.dump(params, config_file, indent=4)
 
-    # save the encoder_params
-
+  
+    if args.use_time:
+        models=[]
+        for i,name in enumerate(args.model_name): #assume model name and model_init are both lists ( should do assert) 
+            ckpt, pretrained = init_model(args.model_init[i], args.init_ckpt_dir,)
+            params = dict(model_name=name, in_channels=args.in_channels, ckpt_path=ckpt)
+            models[i]=get_model(**params)
+        encoder=Encoder(models[0],models[1])
+        
     encoder = get_model(**params)
     # encoder=Encoder(self_attn=args.self_attn,**model_dict)
     # config = {"lr": args.lr, "wd": args.conv_reg}  # you can remove this now it is for raytune
+    
     best_loss, best_path = setup_experiment(encoder, train_loader, validation_loader, args,
                                             batcher_test=test_loader)
 

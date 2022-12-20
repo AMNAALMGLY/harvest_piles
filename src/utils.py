@@ -11,7 +11,7 @@ from typing import Optional
 #from configs import args
 
 from src.models import resnet18, resnet34, resnet50, resnext50_32x4d
-
+from src.models_vit import vit_base_patch16,vit_large_patch16
 import torch.nn.functional as F
 import torchmetrics
 
@@ -20,8 +20,9 @@ model_type = dict(
     resnet34=resnet34,
     resnet50=resnet50,
     resnext=resnext50_32x4d,
-    # vit=vit_B_32,
-    # vitL=vit_L_32,
+    vit=vit_base_patch16,
+    vitL=vit_large_patch16,
+    #encoder=encoder
     # vit16=vit_B_16,
     # vit384=vit_B_32_384
 )
@@ -45,10 +46,16 @@ def init_model(method, ckpt_path=None):
 
 
 def get_model(model_name, in_channels, pretrained=False, ckpt_path=None):
+    #TODO refactor this
     model_fn = model_type[model_name]
-
-    model = model_fn(in_channels, pretrained)
+    if 'vit' in model_name:
+        model=model_fn()
+    else:
+        
+        model = model_fn(in_channels, pretrained)
+    
     if ckpt_path:
+        print(f'loading model from checkpoint{ckpt_path}')
         model = load_from_checkpoint(ckpt_path, model)
     return model
 
@@ -142,19 +149,45 @@ def load_from_checkpoint(path, model):
     if 'moco' in path:
         # moco pretrained models need some weights renaming
         checkpoint = torch.load(path)
-        model.fc = torch.nn.Sequential()
+        # model.fc = torch.nn.Sequential()
         loaded_dict = checkpoint['state_dict']
-        # print(loaded_dict.keys())
+       
         model_dict = model.state_dict()
         del loaded_dict["module.queue"]
         del loaded_dict["module.queue_ptr"]
         # load state dict keys
         for key_model, key_seco in zip(model_dict.keys(), loaded_dict.keys()):
-            #         #ignore first layer weights(use imagenet ones)
-            # if key_model=='conv1.weight':
-            #             continue
+            if 'fc' in key_model:
+                #ignore fc weight
+                continue
             model_dict[key_model] = loaded_dict[key_seco]
         model.load_state_dict(model_dict)
+    elif 'fmow' in path:
+        checkpoint=torch.load(path)
+        checkpoint_model=checkpoint['model']
+        print('fmow keys', checkpoint_model.keys())
+   
+        state_dict = model.state_dict()
+        print('model keys',state_dict.keys())
+        # for k in ['mask_token', 'decoder_pos_embed']:
+        # #'head.weight', 'head.bias']:
+        #     # if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
+        #         print(f"Removing key {k} from pretrained checkpoint")
+        #         del checkpoint_model[k]
+        loaded_dict = checkpoint_model
+        model_dict = model.state_dict()
+        del loaded_dict["mask_token"]
+        del loaded_dict["decoder_pos_embed"]
+       
+        for key_model, key_satmae in zip(model_dict.keys(), loaded_dict.keys()):
+            if 'fc'  in key_model or 'head' in key_model:
+                #ignore fc weight
+                continue
+            model_dict[key_model] = loaded_dict[key_satmae]
+        
+        model.load_state_dict(model_dict)
+        
+       
     else:
         ckpt = torch.load(path)
 

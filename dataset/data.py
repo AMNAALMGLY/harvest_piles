@@ -22,10 +22,11 @@ class HarvestPatches(Dataset):
         y is binary label whether this patch is pile or not
     Metadata:
         each image is annotated with a location coordinate corners (x1,x2,y1,y2).
+    
     """
 
     def __init__(self, datadir, csv_dir, augment, normalize, clipn, patch_size, label_name,resize=True,crop=True,resize_size=224,
-                 metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max'], X=None, y=None):
+                 metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max'], X=None, y=None, time=args.use_time):
         '''
         Args
 
@@ -42,19 +43,33 @@ class HarvestPatches(Dataset):
         self.y = y
         self.metalist = metalist
         self.label_name = label_name
+        self.patch_size = patch_size
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
-        self.means, self.stds = self.norm(datadir)
-        # self.means, self.stds = np.array([102.08843886, 79.48795566, 50.89498866]), np.array(
-        #     [39.54905753, 25.98510947, 21.84003744])
-        self.patch_size = patch_size
+        if self.normalize:
+            # self.means, self.stds = self.norm(datadir,csv_dir)
+            # print(self.means, self.stds)
+             
+             self.means, self.stds = np.array([104.32205321,  92.59582118,  81.39468476] ), np.array(
+                 [26.22593466, 22.02386394, 21.15817767])
+       
         if self.X is not None and self.y is not None:
             self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
         self.crop=crop
         self.resize=resize
         self.resize_size=resize_size
+        self.extract_time=time
         # self.metadata
+        #time stamp:
+        if time:
+            #extract
+            self.data['year']=self.data['filename'].apply(lambda x:x.split('_')[0][:4])
+            self.data['month']=self.data['filename'].apply(lambda x:x.split('_')[0][4:6])
+            #encode:
+            self.data['year']=self.data['year'].apply(encode_year)
+            self.data['month']=self.data['month'].apply(encode_month)
+            
 
     def __len__(self):
 
@@ -95,7 +110,13 @@ class HarvestPatches(Dataset):
         labels = self.data.loc[idx, self.label_name]
         if not isinstance(labels, bool):
             labels = labels.astype(np.bool_)
-
+        #time stamp
+        if self.extract_time:
+        
+            ts_list =[self.data.loc[idx,'year'],self.data.loc[idx,'month']]
+            ts=np.concatenate(ts_list,axis=0)
+            return image, labels, ts
+            
         # test
         #assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
         # assert locs.shape == (4,), 'locs shape is wrong'
@@ -103,7 +124,8 @@ class HarvestPatches(Dataset):
         # example = {'images': image, 'locs': locs, 'labels': labels}
 
         # return example
-        return image, labels
+        else:
+            return image, labels
 
     def transform(self):
         # pass
@@ -133,19 +155,38 @@ class HarvestPatches(Dataset):
 
         # finidng the mean and standard deviation of all the images
 
-    def norm(self, imgs_root_dir):
-
-        files = glob.glob(os.path.join(imgs_root_dir, '*.tif'))
+    def norm(self,imgs_root_dir,csv_dir):
+         
+        data = pd.read_csv(csv_dir)
+       
+        data['filename']= str(imgs_root_dir) + data['filename'].astype(str)
+        files= data['filename'].tolist()
+        print(len(files))
+     
+        # img_filename = os.path.join(imgs_root_dir, str(self.data.loc[idx, 'filename']))
+        # files = glob.glob(os.path.join(imgs_root_dir, '*.tif'))
         img_list = []
+        i=0
         for file in files:
             img = self.load_geotiff(file)
+            #print(img.shape)
+            if img is not None  and img.shape !=(3,self.patch_size,self.patch_size):
+                i+=1
+                # print(img.shape)
+                continue
             img_list.append(img)
+        # print('i', i)
         imgs = np.stack(img_list, axis=0)
         means = np.mean(imgs, axis=(0, 2, 3))
         stds = np.std(imgs, axis=(0, 2, 3))
         return means, stds
 
-
+min_year=2007
+def encode_month(data):
+    return np.sin(2 * np.pi * data/12)
+def encode_year(data):
+    data=data.astype(np.int_)-min_year
+    return data
 def make_balanced_weights(dataset):
     '''
     dataset: pd.Dataframe of imgs, labels('piles')
@@ -157,7 +198,7 @@ def make_balanced_weights(dataset):
     #preprocess the labels to boolen type
     dataset[args.label_name]=dataset[args.label_name].astype(np.bool_)
     for idx, row in enumerate(dataset.iterrows()):
-        print('item',dataset.loc[idx, args.label_name])
+        # print('item',dataset.loc[idx, args.label_name])
         if dataset.loc[idx, args.label_name]:
             # print('in positives',pos)
             pos = pos + 1
