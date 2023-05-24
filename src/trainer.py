@@ -16,6 +16,7 @@ from src.utils import Metric
 from timm.models.layers import trunc_normal_
 patience = args.patience
 import numpy as np
+from timm.loss import LabelSmoothingCrossEntropy
 
 class Trainer:
     """A trainer class for model training
@@ -50,13 +51,12 @@ class Trainer:
         - model:PreAct Model class
         - lr: int learning_rate
         - weight_decay: int
-        - loss_type: str, one of ['classification', 'mse','smoothL1']
+        - loss_type: str, one of ['classification', 'focal','cp']
         - num_outputs:output class  one of [None ,num_classes]
-        - metric:List[str]  one of ['r2','R2' ,'mse', 'rank']
+        - metric:List[str]  one of ['acc','f1' ,'percison', 'recall']
         '''
         super().__init__()
 
-        self.label_name = args.label_name
         self.model = model
         # init fc layer
         fc_in_dim = self.model.fc.in_features
@@ -92,7 +92,7 @@ class Trainer:
         trainloss = 0
 
         x = torch.tensor(batch[0])
-
+        # print(torch.isnan(batch[0]).any(),batch[1])
         if x is not None:
             label = batch[1]
             target = torch.tensor(label, )
@@ -120,7 +120,7 @@ class Trainer:
                 preds = nn.functional.softmax(outputs, dim=1)
                 target = target.long()
 
-            elif self.loss_type in ['classification' ,'focal','cb']   and self.num_outputs == 1:
+            elif self.loss_type in ['classification' ,'focal','cb','labelsmooth']   and self.num_outputs == 1:
                 preds = torch.sigmoid(outputs )
                 target = target.long()
 
@@ -164,11 +164,11 @@ class Trainer:
         outputs = outputs.squeeze(dim=-1)
         preds = torch.sigmoid(outputs, )
 
-        preds = (preds >= 0.5).type_as(batch)
+        preds = (preds > 0.5).type_as(batch)
 
         return preds
 
-    def fit(self, trainloader, validloader, batcher_test, max_epochs, gpus, class_model=None, early_stopping=True,
+    def fit(self, trainloader, validloader, batcher_test, max_epochs, gpus, early_stopping=True,
             save_every=25, args=args):
 
         wandb.watch(self.model, log='all', log_freq=5)
@@ -179,9 +179,9 @@ class Trainer:
         best_loss = float('inf')
         count2 = 0  # count loss improving times
 
-        r2_dict = defaultdict(lambda x: '')
         resume_path = None
-        val_list = defaultdict(lambda x: '')
+        val_list = defaultdict(lambda x: '')  #val loss after best epochs
+        acc_list= defaultdict(lambda x: '')
         start = time.time()
 
         for epoch in range(max_epochs):
@@ -246,6 +246,8 @@ class Trainer:
 
                 for i,m in enumerate(self.metric):
                      value = self.metric[i].compute()
+                     if i==1:
+                        acc_valid=value
                      wandb.log({f'{m} validation': value, 'epoch': epoch})
                 for i in range(len(self.metric)):
                      self.metric[i].reset()
@@ -254,7 +256,7 @@ class Trainer:
                 wandb.log({"Epoch_valid_loss": avg_valid_loss, 'epoch': epoch})
 
                 # AGAINST ML RULES : moniter test values
-                r2_test, test_loss = self.test(batcher_test)
+                _, _ = self.test(batcher_test)
 
                 # early stopping with loss
                 if best_loss - avg_valid_loss >= 0:
@@ -269,8 +271,7 @@ class Trainer:
                         print('in best path saving')
                         save_path = os.path.join(self.save_dir, f'best_Epoch{epoch}.ckpt')
                         torch.save(self.model.state_dict(), save_path)
-                        # save r2 values and loss values
-                        #r2_dict[r2_valid] = save_path
+                        acc_list[acc_valid] = save_path
                         val_list[avg_valid_loss] = save_path
                         print(f'best model  in loss at Epoch {epoch} loss {avg_valid_loss} ')
                         print(f'Path to best model at loss found during training: \n{save_path}')
@@ -301,10 +302,10 @@ class Trainer:
 
             print("Time Elapsed for one epochs : {:.2f}m".format((time.time() - epoch_start) / 60))
 
-        # choose the best model between the saved models in regard to r2 value or minimum loss
-#         if len(r2_dict.keys()) > 0:
-#             best_path = r2_dict[max(r2_dict.keys())]
-#             print(f'{self.metric_str[0]} of best model saved is {max(r2_dict.keys())} , path {best_path}')
+        # choose the best model between the saved models  minimum loss
+#         if len(acc_list.keys()) > 0:
+#             best_path = acc_list[max(acc_list.keys())]
+#             print(f'{self.metric_str[0]} of best model saved is {max(acc_list.keys())} , path {best_path}')
 
 #             shutil.move(best_path,
 #                         os.path.join(self.save_dir, 'best.ckpt'))
@@ -315,7 +316,6 @@ class Trainer:
 
             shutil.move(best_path,
                         os.path.join(self.save_dir, 'best.ckpt'))
-
 
 
         else:
@@ -340,17 +340,17 @@ class Trainer:
             test_epoch_loss = 0
             print('--------------------------Testing-------------------- ')
             self.model.eval()
-            r2_test = []
+            metrics = []
             for record in batcher_test:
                 test_epoch_loss += self.test_step(record).item()
                 test_step += 1
 
             for i, m in enumerate(self.metric):
-                r2_test.append((m.compute()))
+                metrics.append((m.compute()))
 
-                wandb.log({f'{m} Test': r2_test[i], })
+                wandb.log({f'{m} Test': metrics[i], })
 
-        return r2_test, (test_epoch_loss / test_step)
+        return metrics, (test_epoch_loss / test_step)
 
     def configure_optimizers(self):
         if args.scheduler == 'cyclic':
@@ -388,6 +388,8 @@ class Trainer:
             self.criterion = nn.L1Loss()
         elif self.loss_type == 'smoothL1':
             self.criterion = nn.SmoothL1Loss(beta=3)
+        elif self.loss_type=='labelsmooth':
+             self.criterion = LabelSmoothingLoss()
         elif self.loss_type == 'focal':
             self.criterion = Sigmoid_Focal_Loss()
         
@@ -442,7 +444,73 @@ class Trainer:
 #
 #     return loss
 
+# class BinaryCrossEntropy(nn.Module):
+#     """ BCE with optional one-hot from dense targets, label smoothing, thresholding
+#     NOTE for experiments comparing CE to BCE /w label smoothing, may remove
+#     """
+#     def __init__(
+#             self, smoothing=0.1, target_threshold = None, weight = None,
+#             reduction: str = 'mean', pos_weight = None):
+#         super(BinaryCrossEntropy, self).__init__()
+#         assert 0. <= smoothing < 1.0
+#         self.smoothing = smoothing
+#         self.target_threshold = target_threshold
+#         self.reduction = reduction
+#         self.register_buffer('weight', weight)
+#         self.register_buffer('pos_weight', pos_weight)
 
+#     def forward(self, x: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+#             assert x.shape[0] == target.shape[0]
+#         # if target.shape != x.shape:
+#             # NOTE currently assume smoothing or other label softening is applied upstream if targets are already sparse
+#             num_classes = 2
+#             # FIXME should off/on be different for smoothing w/ BCE? Other impl out there differ
+#             x= torch.nn.functional.one_hot(x)
+#             off_value = self.smoothing / num_classes
+#             on_value = 1. - self.smoothing + off_value
+#             target = target.long().view(-1, 1)
+#             target = torch.full(
+#                 (target.size()[0], num_classes),
+#                 off_value,
+#                 device=x.device, dtype=x.dtype).scatter_(1, target, on_value)
+            
+#             # target=torch.argmax(target, dim=1)
+#             if self.target_threshold is not None:
+#             # Make target 0, or 1 if threshold set
+#                 target = target.gt(self.target_threshold).to(dtype=target.dtype)
+#             return F.binary_cross_entropy_with_logits(
+#                 x, target,
+#                 self.weight,
+#                 pos_weight=self.pos_weight,
+#                 reduction=self.reduction)
+class LabelSmoothingLoss(torch.nn.Module):
+    def __init__(self, smoothing= 0.1, 
+                 reduction="mean", weight=None):
+        super(LabelSmoothingLoss, self).__init__()
+        self.smoothing   = smoothing
+        self.reduction = reduction
+        self.weight    = weight
+
+    def reduce_loss(self, loss):
+        return loss.mean() if self.reduction == 'mean' else loss.sum() \
+         if self.reduction == 'sum' else loss
+
+    def linear_combination(self, x, y):
+        return self.smoothing * x + (1 - self.smoothing) * y
+
+    def forward(self, preds, target):
+        assert 0 <= self.smoothing < 1
+
+        if self.weight is not None:
+            self.weight = self.weight.to(preds.device)
+
+        n = preds.size(-1)
+        log_preds = F.sigmoid(preds)
+        loss = self.reduce_loss(-log_preds.sum(dim=-1))
+        nll = F.binary_cross_entropy(
+            log_preds, target, reduction=self.reduction, weight=self.weight
+        )
+        return self.linear_combination(loss / n, nll)
 class Sigmoid_Focal_Loss():
     
     """

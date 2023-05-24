@@ -26,7 +26,7 @@ class HarvestPatches(Dataset):
     """
 
     def __init__(self, datadir, csv_dir, augment, normalize, clipn, patch_size, label_name,resize=True,crop=True,resize_size=224,
-                 metalist=['lat_min', 'lat_max', 'lon_min', 'lon_max'], X=None, y=None, time=args.use_time):
+                 time=args.use_time,rescale=args.rescale):
         '''
         Args
 
@@ -39,23 +39,28 @@ class HarvestPatches(Dataset):
         self.datadir = datadir
 
         self.data = pd.read_csv(csv_dir)
-        self.X = X
-        self.y = y
-        self.metalist = metalist
+       
         self.label_name = label_name
         self.patch_size = patch_size
         self.augment = augment
         self.normalize = normalize
         self.clipn = clipn
+        self.rescale = rescale
         if self.normalize:
-            # self.means, self.stds = self.norm(datadir,csv_dir)
-            # print(self.means, self.stds)
-             
-             self.means, self.stds = np.array([104.32205321,  92.59582118,  81.39468476] ), np.array(
-                 [26.22593466, 22.02386394, 21.15817767])
+             # self.means, self.stds = self.norm(datadir,csv_dir)
+             # print(self.means, self.stds)
+             if 'planet' in datadir:
+                     print('in planet norm')
+                     self.means,self.stds=np.array([0.4355515,  0.32816476, 0.22282955]), np.array([0.13697046, 0.09374066, 0.07623406])
+             else:
+                    self.means, self.stds=np.array( [0.40763366 ,0.3615943 , 0.31766695]),np.array( [0.1024891 , 0.08646118, 0.08351463])
+          
+             # self.means, self.stds = np.array([110.55637167  ,83.66213759,  56.63501254]),np.array([35.87896582, 24.70206238, 20.74427246])
+
+             # self.means, self.stds = np.array( [103.94648461 , 92.20671153 , 81.00511347] ), np.array(
+             #     [26.13480798, 22.04760537, 21.29621976])
        
-        if self.X is not None and self.y is not None:
-            self.data = self.data.iloc[self.X.index, :].reset_index(drop=True)
+        
         self.crop=crop
         self.resize=resize
         self.resize_size=resize_size
@@ -80,52 +85,47 @@ class HarvestPatches(Dataset):
         # the metadata
         # the labels
         img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
-        image = self.load_geotiff(img_filename)
-
-        if image is  None:
-            image=np.empty((3,self.patch_size,self.patch_size))
-        #preprocess the image to match the desired image size required
-        if self.crop:
-            image=transforms.CenterCrop(self.patch_size)(torch.tensor(image)).numpy()
-
-        if self.resize:
-            image = transforms.Resize(self.resize_size)(torch.tensor(image)).numpy()
-        # preprocessing
-        if self.clipn:
-            image = np.clip(image, a_min=0., a_max=1e20)
-
-        if self.normalize:
-            # per channel normalization
-            self.means = self.means.reshape(-1, 1, 1)
-            self.stds = self.stds.reshape(-1, 1, 1)
-            image = (image - self.means) / self.stds
-
-        if self.augment:
-            image = torch.tensor(image)
-            image = self.transform()(image)
-            image = image.numpy()
-
-        # locs = self.data.loc[idx, self.metalist].to_numpy()
-        # locs = locs.astype(np.float32)
-        labels = self.data.loc[idx, self.label_name]
-        if not isinstance(labels, bool):
-            labels = labels.astype(np.bool_)
-        #time stamp
-        if self.extract_time:
-        
-            ts_list =[self.data.loc[idx,'year'],self.data.loc[idx,'month']]
-            ts=np.concatenate(ts_list,axis=0)
-            return image, labels, ts
+        try:
             
-        # test
-        #assert image.shape == (3, self.patch_size, self.patch_size), 'image shape is wrong'
-        # assert locs.shape == (4,), 'locs shape is wrong'
+            image = self.load_geotiff(img_filename)
 
-        # example = {'images': image, 'locs': locs, 'labels': labels}
+       
+          
+            #preprocess the image to match the desired image size required
+            if self.crop:
+                        image=transforms.CenterCrop((self.patch_size,self.patch_size))(image)
 
-        # return example
-        else:
-            return image, labels
+            if self.resize:
+                        image = transforms.Resize((self.resize_size,self.resize_size))(image)
+                        image=transforms.ToTensor()(image).numpy()
+            # preprocessing
+            if self.clipn:
+                image = np.clip(image, a_min=0., a_max=1e20)
+            if self.rescale:
+                image = (image + 1.0) / 2.0
+            elif self.normalize:
+                # per channel normalization
+                self.means = self.means.reshape(-1, 1, 1)
+                self.stds = self.stds.reshape(-1, 1, 1)
+                image = (image - self.means) / self.stds
+
+            if self.augment:
+                image = torch.tensor(image)
+                image = self.transform()(image)
+                image = image.numpy()
+
+            if self.data is not None:
+                labels = self.data.loc[idx, self.label_name]
+            else:
+                labels=None
+            # if not isinstance(labels, bool):
+            labels = labels.astype(np.float32)
+        except:
+            return None
+
+        
+        return image, labels
+       
 
     def transform(self):
         # pass
@@ -149,11 +149,17 @@ class HarvestPatches(Dataset):
             ds.GetRasterBand(3).ReadAsArray())
 
         channels = [r, g, b]
-        image = np.stack(channels, axis=0).astype(np.float64)
-
+        image = np.stack(channels, axis=0)
+        image=image.transpose(1,2,0)
+        image=transforms.ToPILImage()(image)
         return image
+    
+    def collate_fn(self, batch):
+        batch = list(filter(lambda x: x is not None, batch))
+        return torch.utils.data.dataloader.default_collate(batch)
 
         # finidng the mean and standard deviation of all the images
+    
 
     def norm(self,imgs_root_dir,csv_dir):
          
@@ -168,19 +174,25 @@ class HarvestPatches(Dataset):
         img_list = []
         i=0
         for file in files:
-            img = self.load_geotiff(file)
+            img = self.load_geotiff(str(file))
+            if img is not None:
+    
+                img =transforms.CenterCrop((self.patch_size,self.patch_size))(img)
+                img=transforms.ToTensor()(img).numpy()
+               
+              
             #print(img.shape)
-            if img is not None  and img.shape !=(3,self.patch_size,self.patch_size):
+            if img is  None  or img.shape !=(3,self.patch_size,self.patch_size):
                 i+=1
                 # print(img.shape)
                 continue
             img_list.append(img)
-        # print('i', i)
+        print('i', i)
         imgs = np.stack(img_list, axis=0)
         means = np.mean(imgs, axis=(0, 2, 3))
         stds = np.std(imgs, axis=(0, 2, 3))
         return means, stds
-
+    
 min_year=2007
 def encode_month(data):
     return np.sin(2 * np.pi * data/12)

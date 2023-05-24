@@ -11,10 +11,10 @@ from typing import Optional
 #from configs import args
 
 from src.models import resnet18, resnet34, resnet50, resnext50_32x4d
-from src.models_vit import vit_base_patch16,vit_large_patch16
+from src.models_vit import vit_base_patch16,vit_large_patch16, ViTFinetune
 import torch.nn.functional as F
 import torchmetrics
-
+# from configs import args
 model_type = dict(
     resnet18=resnet18,
     resnet34=resnet34,
@@ -49,7 +49,19 @@ def get_model(model_name, in_channels, pretrained=False, ckpt_path=None):
     #TODO refactor this
     model_fn = model_type[model_name]
     if 'vit' in model_name:
-        model=model_fn()
+        #model=model_fn()
+        print('in vit finetune')
+        model = ViTFinetune(
+                img_size=224,
+                patch_size=16,
+                in_chans=3,
+                num_classes=2,
+                embed_dim=768,
+                depth=12,
+                num_heads=12,
+                mlp_ratio=4,
+                drop_rate=0.1,
+            )
     else:
         
         model = model_fn(in_channels, pretrained)
@@ -82,6 +94,13 @@ class Metric:
 
     def f1(self):
         return torchmetrics.F1Score(num_classes=self.num_classes)
+    def auroc(self):
+        return  torchmetrics.AUROC(num_classes=self.num_classes)
+#     def p(self):
+#         return torchmetrics.F1Score(num_classes=self.num_classes,task='binary')
+#     def recall(self):
+#         return torchmetrics.AUROC(num_classes=self.num_classes,task='binary')
+
 
 
 def seed_everything(seed: Optional[int] = None, workers: bool = False) -> int:
@@ -162,7 +181,7 @@ def load_from_checkpoint(path, model):
                 continue
             model_dict[key_model] = loaded_dict[key_seco]
         model.load_state_dict(model_dict)
-    elif 'fmow' in path:
+    elif 'vit' in path:
         checkpoint=torch.load(path)
         checkpoint_model=checkpoint['model']
         print('fmow keys', checkpoint_model.keys())
@@ -176,16 +195,33 @@ def load_from_checkpoint(path, model):
         #         del checkpoint_model[k]
         loaded_dict = checkpoint_model
         model_dict = model.state_dict()
-        del loaded_dict["mask_token"]
-        del loaded_dict["decoder_pos_embed"]
-       
-        for key_model, key_satmae in zip(model_dict.keys(), loaded_dict.keys()):
-            if 'fc'  in key_model or 'head' in key_model:
-                #ignore fc weight
-                continue
-            model_dict[key_model] = loaded_dict[key_satmae]
+        #del loaded_dict["cls_token"]
+        # del loaded_dict["mask_token"]
+        # del loaded_dict["decoder_pos_embed"]
+        # del loaded_dict['channel_embed']
+        # del loaded_dict['channel_cls_embed']
+        #del loaded_dict['pos_embed']
         
+        # del loaded_dict['patch_embed.2.proj.bias']
+        # del loaded_dict['patch_embed.2.proj.weight']
+        # del loaded_dict['patch_embed.1.proj.bias']
+        # del loaded_dict['patch_embed.1.proj.weight']
+       
+#         for key_model, key_satmae in zip(model_dict.keys(), loaded_dict.keys()):
+#             if 'fc'  in key_model or 'head' in key_model  or "cls_token" in key_model or 'pos_embed' in key_model :
+#                 #ignore fc weight
+              
+#             #     continue
+#             # model_dict[key_model] = loaded_dict[key_satmae]
+        for key_model in model_dict.keys():
+         if 'fc'  in key_model or 'head' in key_model :
+#                 #ignore fc weight
+              model_dict[key_model]= model_dict[key_model]
+         else:
+             model_dict[key_model]=loaded_dict[key_model]
+          
         model.load_state_dict(model_dict)
+
         
        
     else:
@@ -209,3 +245,8 @@ def get_full_experiment_name(experiment_name: str, batch_size: int,
     else:
         lr_str = str(lr)
     return f'{experiment_name}_b{batch_size}_conv{conv_str}_lr{lr_str}_crop{str(patch_size)}'
+
+
+# cls_token', 'pos_embed', 'channel_embed', 'mask_token', 'decoder_pos_embed', 'decoder_channel_embed', 'patch_embed.0.proj.weight'
+
+# 'cls_token', 'pos_embed', 'channel_embed', 'channel_cls_embed', 'patch_embed.0.proj.weight'

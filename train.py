@@ -39,6 +39,7 @@ def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None)
     # setting experiment_path
     experiment = get_full_experiment_name(args.experiment_name, args.batch_size,
                                           args.conv_reg, args.lr, args.image_size)
+    wandb.config.update({'exp_name':experiment})
 
     # output directory
     dirpath = os.path.join(args.out_dir, experiment)
@@ -52,7 +53,7 @@ def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None)
                                   args=args)
     # score = trainer.test(batcher_test)
 
-    return best_loss, path, \
+    return best_loss, path 
         # score
 
 
@@ -86,82 +87,75 @@ def main(args):
     # Todo: define dataset /dataloader
 
     # Creating data indices for training and validation splits:
-    dataset = HarvestPatches(**data_params)
-    train_params = dict(datadir=args.data_path,
-                        csv_dir='/atlas2/u/amna/harvest_piles/train.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
-                        label_name=args.label_name,
-                        patch_size=args.image_size)
+    if not args.random_split:
+        dataset = HarvestPatches(**data_params)
+        train_params = dict(datadir=args.data_path,
+                            csv_dir='/atlas2/u/amna/harvest_piles/eighty_clust33.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                            label_name=args.label_name,
+                            patch_size=args.image_size)
+#         '/atlas2/u/amna/harvest_piles/ninety_train_clust.csv'
+# '/atlas2/u/amna/harvest_piles/sixty_train_clust.csv'
+# '/atlas2/u/amna/harvest_piles/two_clust.csv'
+# '/atlas2/u/amna/harvest_piles/eighty_clust.csv'
+# '/atlas2/u/amna/harvest_piles/forty_clust.csv'
+        val_params = dict(datadir=args.data_path,
+                          csv_dir='/atlas2/u/amna/harvest_piles/valid_cluster_cent33.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                          label_name=args.label_name,
+                          patch_size=args.image_size)
+          #should be a fixed test set 
+        test_params = dict(datadir=args.data_path,
+                           csv_dir='/atlas2/u/amna/harvest_piles/test_cluster_cent33.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                           label_name=args.label_name,
+                           patch_size=args.image_size)
+    else:
+           train_params = dict(datadir=args.data_path,
+                            csv_dir='/atlas2/u/amna/harvest_piles/train2.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                            label_name=args.label_name,
+                            patch_size=args.image_size)
+           val_params = dict(datadir=args.data_path,
+                          csv_dir='/atlas2/u/amna/harvest_piles/val2.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                          label_name=args.label_name,
+                          patch_size=args.image_size)
+          #should be a fixed test set 
+           test_params = dict(datadir=args.data_path,
+                           csv_dir='/atlas2/u/amna/harvest_piles/test2.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                           label_name=args.label_name,
+                           patch_size=args.image_size)
+        
     train = HarvestPatches(**train_params)
-    val_params = dict(datadir=args.data_path,
-                      csv_dir='/atlas2/u/amna/harvest_piles/val.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
-                      label_name=args.label_name,
-                      patch_size=args.image_size)
+
     val = HarvestPatches(**val_params)
     
-    #should be a fixed test set 
-    test_params = dict(datadir=args.data_path,
-                       csv_dir='/atlas2/u/amna/harvest_piles/test.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
-                       label_name=args.label_name,
-                       patch_size=args.image_size)
+  
     test = HarvestPatches(**test_params)
 
-#     if args.random_split:
-    
-#         train, val, test = generate_random_splits(dataset, val_size=0.2, test_size=0.2)
-#         train_df = dataset.data.iloc[train.indices, :].reset_index(drop=True)
-    
-    
-#     else:
-    
-#         x_tr, x_val, x_test, y_tr, y_val, y_test = generate_stratified_splits(dataset.data['filename'],
-#                                                                               dataset.data['piles'].astype(bool),
-#                                                                               val_size=0.2, test_size=0.2)
-#         train = HarvestPatches(**data_params, X=x_tr, y=y_tr)
-#         val = HarvestPatches(**data_params, X=x_val, y=y_val)
-#         test = HarvestPatches(**data_params, X=x_test, y=y_test)
-#         train_df = train.data
 
-    # dataset_size = len(dataset)
-    # validation_split = 0.2
-    # indices = list(range(dataset_size))
-    # split = int(np.floor(validation_split * dataset_size))
-    #
-    # np.random.seed(123)
-    # np.random.shuffle(indices)
-    # train_indices, val_indices = indices[split:], indices[:split]
-    #
-    # # Creating PT data samplers and loaders:
-    # train_sampler = SubsetRandomSampler(train_indices)
-    # valid_sampler = SubsetRandomSampler(val_indices)
     
     train_df = train.data
-    weights = make_balanced_weights(train_df)
-    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
-    train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-                                               sampler=sampler,)
-                                              # num_workers=args.num_workers, pin_memory=True)
+    if args.balanced:
+        weights = make_balanced_weights(train_df)
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights),replacement=False)
+        train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
+                                                   sampler=sampler,collate_fn=train.collate_fn)
+    else:
+        train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
+                                                   shuffle=True,collate_fn=train.collate_fn,
+                                            num_workers=args.num_workers, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
-                                                    #num_workers=args.num_workers,
-                                                    shuffle=False,)
-                                                    #pin_memory=True)
+                                                    num_workers=args.num_workers,
+                                                    shuffle=False,collate_fn=val.collate_fn,
+                                                    pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
-                                              #num_workers=args.num_workers,
-                                              shuffle=False,)
-                                              #pin_memory=True)
-    # train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-    #                                            sampler=sampler)
-    # validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
-    #                                                 shuffle=False)
-    # test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
-    #                                           shuffle=False)
-    # for i in train_loader:
-    #     print(i)
-    #     break
+                                              num_workers=args.num_workers,
+                                              shuffle=False,collate_fn=test.collate_fn,
+                                              pin_memory=True)
+
     ckpt, pretrained = init_model(args.model_init, args.init_ckpt_dir, )
 
     params = dict(model_name=args.model_name, in_channels=args.in_channels, ckpt_path=ckpt)
 
     encoder_params_filepath = os.path.join(dirpath, 'encoder_params.json')
+    
     with open(encoder_params_filepath, 'w') as config_file:
          # save the encoder_params
         json.dump(params, config_file, indent=4)
@@ -174,8 +168,8 @@ def main(args):
             params = dict(model_name=name, in_channels=args.in_channels, ckpt_path=ckpt)
             models[i]=get_model(**params)
         encoder=Encoder(models[0],models[1])
-        
-    encoder = get_model(**params)
+    else:
+        encoder = get_model(**params)
     # encoder=Encoder(self_attn=args.self_attn,**model_dict)
     # config = {"lr": args.lr, "wd": args.conv_reg}  # you can remove this now it is for raytune
     
