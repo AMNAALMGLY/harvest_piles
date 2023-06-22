@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import os
 import random
+import torchvision
 import warnings
 from typing import Optional
 #from configs import args
@@ -22,6 +23,7 @@ model_type = dict(
     resnext=resnext50_32x4d,
     vit=vit_base_patch16,
     vitL=vit_large_patch16,
+    satlas=vit_base_patch16
     #encoder=encoder
     # vit16=vit_B_16,
     # vit384=vit_B_32_384
@@ -47,7 +49,7 @@ def init_model(method, ckpt_path=None):
 
 def get_model(model_name, in_channels, pretrained=False, ckpt_path=None):
     #TODO refactor this
-    model_fn = model_type[model_name]
+    
     if 'vit' in model_name:
         #model=model_fn()
         print('in vit finetune')
@@ -62,8 +64,15 @@ def get_model(model_name, in_channels, pretrained=False, ckpt_path=None):
                 mlp_ratio=4,
                 drop_rate=0.1,
             )
+    elif model_name=='satlas':
+        model = torchvision.models.swin_transformer.swin_v2_b()
+            
+
+            # for param in self.feature_extractor.parameters():
+            #     param.requires_grad = False
+            # self.model = nn.Linear(1000, self.target_size)
     else:
-        
+        model_fn = model_type[model_name]
         model = model_fn(in_channels, pretrained)
     
     if ckpt_path:
@@ -188,31 +197,11 @@ def load_from_checkpoint(path, model):
    
         state_dict = model.state_dict()
         print('model keys',state_dict.keys())
-        # for k in ['mask_token', 'decoder_pos_embed']:
-        # #'head.weight', 'head.bias']:
-        #     # if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-        #         print(f"Removing key {k} from pretrained checkpoint")
-        #         del checkpoint_model[k]
+
         loaded_dict = checkpoint_model
         model_dict = model.state_dict()
-        #del loaded_dict["cls_token"]
-        # del loaded_dict["mask_token"]
-        # del loaded_dict["decoder_pos_embed"]
-        # del loaded_dict['channel_embed']
-        # del loaded_dict['channel_cls_embed']
-        #del loaded_dict['pos_embed']
-        
-        # del loaded_dict['patch_embed.2.proj.bias']
-        # del loaded_dict['patch_embed.2.proj.weight']
-        # del loaded_dict['patch_embed.1.proj.bias']
-        # del loaded_dict['patch_embed.1.proj.weight']
-       
-#         for key_model, key_satmae in zip(model_dict.keys(), loaded_dict.keys()):
-#             if 'fc'  in key_model or 'head' in key_model  or "cls_token" in key_model or 'pos_embed' in key_model :
-#                 #ignore fc weight
-              
-#             #     continue
-#             # model_dict[key_model] = loaded_dict[key_satmae]
+   
+
         for key_model in model_dict.keys():
          if 'fc'  in key_model or 'head' in key_model :
 #                 #ignore fc weight
@@ -223,11 +212,16 @@ def load_from_checkpoint(path, model):
         model.load_state_dict(model_dict)
 
         
-       
+    elif 'satlas' in path:
+        full_state_dict = torch.load(path,map_location=torch.device('cpu'))
+        swin_prefix = 'backbone.backbone.'
+        swin_state_dict = {k[len(swin_prefix):]: v for k, v in full_state_dict.items() if k.startswith(swin_prefix)}
+#             print(swin_state_dict.keys())
+        model.load_state_dict(swin_state_dict)
     else:
         ckpt = torch.load(path)
 
-        model.load_state_dict(torch.load(path))
+        model.load_state_dict(ckpt)
     #model.eval()
     return model
 

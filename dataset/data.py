@@ -51,9 +51,13 @@ class HarvestPatches(Dataset):
              # print(self.means, self.stds)
              if 'planet' in datadir:
                      print('in planet norm')
+                     self.filename='planet_folder'
                      self.means,self.stds=np.array([0.4355515,  0.32816476, 0.22282955]), np.array([0.13697046, 0.09374066, 0.07623406])
+                     
              else:
+                    self.filename='skysat_folder'
                     self.means, self.stds=np.array( [0.40763366 ,0.3615943 , 0.31766695]),np.array( [0.1024891 , 0.08646118, 0.08351463])
+                    
           
              # self.means, self.stds = np.array([110.55637167  ,83.66213759,  56.63501254]),np.array([35.87896582, 24.70206238, 20.74427246])
 
@@ -84,7 +88,11 @@ class HarvestPatches(Dataset):
         # read the images
         # the metadata
         # the labels
-        img_filename = os.path.join(self.datadir, str(self.data.loc[idx, 'filename']))
+        if self.filename in self.data.columns:
+            img_filename = os.path.join(self.datadir+str(self.data.loc[idx, self.filename]),str(self.data.loc[idx, 'filename']))
+        else:
+            img_filename=os.path.join(self.datadir,str(self.data.loc[idx, 'filename']))
+        print(img_filename)
         try:
             
             image = self.load_geotiff(img_filename)
@@ -165,8 +173,9 @@ class HarvestPatches(Dataset):
          
         data = pd.read_csv(csv_dir)
        
-        data['filename']= str(imgs_root_dir) + data['filename'].astype(str)
-        files= data['filename'].tolist()
+        files_names= os.path.join(imgs_root_dir+str(data [self.filename]),str(csv_dir[ 'filename']))
+        #str(imgs_root_dir) + data[self.filename].astype(str)
+        files= filesnames.tolist()
         print(len(files))
      
         # img_filename = os.path.join(imgs_root_dir, str(self.data.loc[idx, 'filename']))

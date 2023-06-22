@@ -44,7 +44,7 @@ class Trainer:
     """
 
     def __init__(self, model, lr, weight_decay, loss_type, num_outputs, metric, save_dir, sched, train_loader=None
-                 , valid_loader=None, test_loader=None, **kwargs):
+                 , valid_loader=None, test_loader=None, freeze=True,fc_in_dim=None, **kwargs):
 
         '''Initializes the Trainer.
         Args
@@ -58,11 +58,20 @@ class Trainer:
         super().__init__()
 
         self.model = model
+        if freeze==True:
+            for param in self.model.parameters():
+                 param.requires_grad = False
+            
         # init fc layer
-        fc_in_dim = self.model.fc.in_features
+        if fc_in_dim:
+            fc_in_dim=fc_in_dim
+        else:
+             fc_in_dim = self.model.fc.in_features
         self.model.fc = nn.Linear(fc_in_dim, num_outputs)
+        self.num_outputs=num_outputs
           #   # manually initialize fc layer
         trunc_normal_(model.fc.weight, std=2e-5)
+        
         self.lr = lr
         self.weight_decay = weight_decay
         self.loss_type = loss_type
@@ -107,6 +116,9 @@ class Trainer:
                 outputs=self.model(x,ts)
             else:
                 outputs = self.model(x)
+            #make sure the outputs shape is (out_featuresx1) else pass to additional fc layer
+            if outputs.shape[-1]!=self.num_outputs:
+                outputs=self.model.fc(outputs)
             
             outputs = outputs.squeeze(dim=-1)
 

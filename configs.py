@@ -10,8 +10,8 @@ args = Namespace(
 
     # Model
 
-    model_name= 'resnet50',
-    #['resnet50','mlp'], #'vitL', #'resnet50',
+    model_name= 'vitL',
+     #'vitL', #'resnet50', #satlas
     hs_weight_init='same',  # [same, samescaled,random]
     model_init= 'ckpt',
     #['ckpt',None], #'ckpt',    #'imagenet',
@@ -37,12 +37,14 @@ args = Namespace(
     image_size=512, #512 or #55  or 53
     in_channels=3,
     use_time=False,
-    data_path='/atlas2/u/amna/harvest_piles/skysat_clip_512_4326_cogs_attempt_2/',
+    data_path='/atlas2/u/amna/harvest_piles',
+    #'/atlas2/u/amna/harvest_piles/skysat_clip_512_4326_cogs_attempt_2/',
     #'/atlas2/u/amna/harvest_piles/planetscope_skysat_location/',
     #skysat_clip_512_4326_cogs_attempt_2/',
 
     #not used anymore in train.py!
-    labels_path= '/atlas2/u/amna/harvest_piles/balanced_final_merged (1).csv',  #this is the final merged file with ~5200 before balancing
+    labels_path= "/atlas2/u/amna/harvest_piles/balanced_final_merged+amhara.csv",
+    #'/atlas2/u/amna/harvest_piles/balanced_final_merged (1).csv',  #this is the final merged file with ~5200 before balancing
     
     #balanced_5k (1).csv',
     #4k_labels.csv',
@@ -50,7 +52,7 @@ args = Namespace(
     #'/atlas2/u/amna/harvest_piles/labels_v0.csv',
     #'/atlas2/u/amna/harvest_piles/imgs_512_processed.csv', #'/atlas2/u/amna/harvest_piles/labels_v0.csv',
 
-    label_name='has_piles',
+    label_name='activity',
 
     augment=True,
     clipn=False,
@@ -58,9 +60,10 @@ args = Namespace(
 
     # Experiment
     seed=123,
-    experiment_name='balanced_5kfinal_cluster300_80',
-    out_dir=os.path.join(ROOT_DIR, 'outputs','new_split','lrcurve_skysat'),
-    init_ckpt_dir='/atlas/u/kayush/winter2020/jigsaw/moco_sat/moco_code/ckpt/fmow/resnet50/cpc_500/lr-0.03_bs-256_t-0.02_mocodim-128_temporal_224_exactly_same_as_32x32_with_add_transform_geohead_corrected/checkpoint_0200.pth.tar',
+    experiment_name='new_skysat+amhara_fulldata_defaultHyp_satmae',
+    out_dir=os.path.join(ROOT_DIR, 'outputs','train+amhara','skysat'),
+    init_ckpt_dir='/atlas/u/amna/harvest_piles/fmow_pretrain.pth',
+    #'/atlas/u/amna/harvest_piles/satlas-model-v1-highres.pth',
     #'/atlas/u/amna/harvest_piles/finetune-vit-base-e7.pth',
 #/atlas/u/amna/harvest_piles/mae_pretrain_vit_base (1).pth
     #'/atlas/u/amna/harvest_piles/pretrain-vit-base-e199.pth',

@@ -90,7 +90,7 @@ def main(args):
     if not args.random_split:
         dataset = HarvestPatches(**data_params)
         train_params = dict(datadir=args.data_path,
-                            csv_dir='/atlas2/u/amna/harvest_piles/eighty_clust33.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                            csv_dir='/atlas2/u/amna/harvest_piles/train_cluster+amhara.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                             label_name=args.label_name,
                             patch_size=args.image_size)
 #         '/atlas2/u/amna/harvest_piles/ninety_train_clust.csv'
@@ -99,12 +99,12 @@ def main(args):
 # '/atlas2/u/amna/harvest_piles/eighty_clust.csv'
 # '/atlas2/u/amna/harvest_piles/forty_clust.csv'
         val_params = dict(datadir=args.data_path,
-                          csv_dir='/atlas2/u/amna/harvest_piles/valid_cluster_cent33.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                          csv_dir='/atlas2/u/amna/harvest_piles/valid_cluster+amhara.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
                           label_name=args.label_name,
                           patch_size=args.image_size)
           #should be a fixed test set 
         test_params = dict(datadir=args.data_path,
-                           csv_dir='/atlas2/u/amna/harvest_piles/test_cluster_cent33.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                           csv_dir='/atlas2/u/amna/harvest_piles/test_highlands.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
                            label_name=args.label_name,
                            patch_size=args.image_size)
     else:
