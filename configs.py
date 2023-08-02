@@ -9,9 +9,10 @@ ROOT_DIR = '/atlas/u/amna/harvest_piles'
 args = Namespace(
 
     # Model
-
-    model_name= 'vitL',
-     #'vitL', #'resnet50', #satlas
+    mode="finetune",
+    mask_ratio=0.4,
+    model_name= 'resnet50',
+     #'vitL' if satmae, #'resnet50', #satlas if satlas
     hs_weight_init='same',  # [same, samescaled,random]
     model_init= 'ckpt',
     #['ckpt',None], #'ckpt',    #'imagenet',
@@ -19,16 +20,16 @@ args = Namespace(
          
     # Training
 
-    scheduler='step',  # warmup_step, #warmup_cos   #step    #cos  #exp
-    lr_decay=0.97, 
-    batch_size=32,
+    scheduler='warmup_cos',  # warmup_step, #warmup_cos   #step    #cos  #exp
+    lr_decay=0.98, 
+    batch_size=64,
     gpu=-1,
-    max_epochs=100,
+    max_epochs=200,
     epoch_thresh=150, #we are not using it
     patience=20,
     lr=0.0003,
 
-    conv_reg=0.1,
+    conv_reg=0.01,
 
     # data
     rescale=False,
@@ -37,13 +38,15 @@ args = Namespace(
     image_size=512, #512 or #55  or 53
     in_channels=3,
     use_time=False,
-    data_path='/atlas2/u/amna/harvest_piles',
+    data_path='/atlas2/u/jonxuxu/datasets/merged',
+    #/labelled',
     #'/atlas2/u/amna/harvest_piles/skysat_clip_512_4326_cogs_attempt_2/',
     #'/atlas2/u/amna/harvest_piles/planetscope_skysat_location/',
     #skysat_clip_512_4326_cogs_attempt_2/',
 
     #not used anymore in train.py!
-    labels_path= "/atlas2/u/amna/harvest_piles/balanced_final_merged+amhara.csv",
+    labels_path= "/atlas2/u/jonxuxu/datasets/merged_labelled.csv",
+    #merged_labels_amhara.csv",
     #'/atlas2/u/amna/harvest_piles/balanced_final_merged (1).csv',  #this is the final merged file with ~5200 before balancing
     
     #balanced_5k (1).csv',
@@ -60,16 +63,15 @@ args = Namespace(
 
     # Experiment
     seed=123,
-    experiment_name='new_skysat+amhara_fulldata_defaultHyp_satmae',
-    out_dir=os.path.join(ROOT_DIR, 'outputs','train+amhara','skysat'),
-    init_ckpt_dir='/atlas/u/amna/harvest_piles/fmow_pretrain.pth',
+    experiment_name='resnet50_new_merged',
+    out_dir=os.path.join(ROOT_DIR, 'outputs','paper','skysat'),
+    init_ckpt_dir="//atlas/u/kayush/winter2020/jigsaw/moco_sat/moco_code/ckpt/fmow/resnet50/cpc_500/lr-0.03_bs-256_t-0.02_mocodim-128_temporal_224_exactly_same_as_32x32_with_add_transform_geohead_corrected/checkpoint_0200.pth.tar",
+    #"/atlas/u/amna/harvest_piles/pretrain-vit-large-e199.pth", if pretrained mae
+    #'/atlas/u/amna/harvest_piles/satlas-model-v1-highres.pth', if satlas
     #'/atlas/u/amna/harvest_piles/satlas-model-v1-highres.pth',
-    #'/atlas/u/amna/harvest_piles/finetune-vit-base-e7.pth',
-#/atlas/u/amna/harvest_piles/mae_pretrain_vit_base (1).pth
-    #'/atlas/u/amna/harvest_piles/pretrain-vit-base-e199.pth',
-    #'/atlas/u/kayush/winter2020/jigsaw/moco_sat/moco_code/ckpt/fmow/resnet50/cpc_500/lr-0.03_bs-256_t-0.02_mocodim-128_temporal_224_exactly_same_as_32x32_with_add_transform_geohead_corrected/checkpoint_0200.pth.tar',
+    #'/atlas/u/kayush/winter2020/jigsaw/moco_sat/moco_code/ckpt/fmow/resnet50/cpc_500/lr-0.03_bs-256_t-0.02_mocodim-128_temporal_224_exactly_same_as_32x32_with_add_transform_geohead_corrected/checkpoint_0200.pth.tar',  if resnet
 
-    #'/atlas/u/amna/harvest_piles/fmow_pretrain.pth',
+    #'/atlas/u/amna/harvest_piles/fmow_pretrain.pth', if satmee
     # 
     # 
     loss_type='classification',
@@ -78,7 +80,7 @@ args = Namespace(
     num_outputs=1,
     resume=None,
 
-    accumlation_steps=2, 
+    accumlation_steps=1, 
     metric=['f1','acc','auroc'],
 
     # Visualization

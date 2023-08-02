@@ -44,7 +44,7 @@ class Trainer:
     """
 
     def __init__(self, model, lr, weight_decay, loss_type, num_outputs, metric, save_dir, sched, train_loader=None
-                 , valid_loader=None, test_loader=None, freeze=True,fc_in_dim=None, **kwargs):
+                 , valid_loader=None, test_loader=None, freeze=False,fc_in_dim=None, **kwargs):
 
         '''Initializes the Trainer.
         Args
@@ -378,8 +378,8 @@ class Trainer:
                                      gamma=args.lr_decay),
                 'cos': torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(opt, T_0=args.max_epochs),
                 'warmup_cos': optimizers.lr_scheduler.LinearWarmupCosineAnnealingLR(opt, warmup_epochs=5,
-                                                                                    max_epochs=200,
-                                                                                    warmup_start_lr=1e-8),
+                                                                                     max_epochs=200,
+                                                                                     warmup_start_lr=1e-8),
 
                 'step': torch.optim.lr_scheduler.StepLR(opt, step_size=5, gamma=args.lr_decay, ),
                 'cyclic': torch.optim.lr_scheduler.CyclicLR(opt, base_lr=1e-4, max_lr=self.lr, cycle_momentum=False),

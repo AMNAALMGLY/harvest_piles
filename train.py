@@ -10,9 +10,10 @@ import wandb
 import os
 
 from configs import args
-from dataset.data import HarvestPatches, generate_random_splits, generate_stratified_splits, \
+from dataset.data import HarvestPatches, generate_random_splits, \
     make_balanced_weights
 from src.trainer import Trainer
+from src.trainer_pretrain import Trainer as pTrainer
 from src.utils import init_model, get_model, get_full_experiment_name
 import random
 from src.models_time import Encoder
@@ -47,7 +48,10 @@ def setup_experiment(model, train_loader, valid_loader, args, batcher_test=None)
     os.makedirs(dirpath, exist_ok=True)
 
     # Trainer
-    trainer = Trainer(save_dir=dirpath, **params)
+    if args.mode=="pretrain":
+       trainer = pTrainer(save_dir=dirpath, **params)
+    else:
+        trainer = Trainer(save_dir=dirpath, **params)
 
     best_loss, path = trainer.fit(train_loader, valid_loader, batcher_test, max_epochs=args.max_epochs, gpus=args.gpus,
                                   args=args)
@@ -90,37 +94,26 @@ def main(args):
     if not args.random_split:
         dataset = HarvestPatches(**data_params)
         train_params = dict(datadir=args.data_path,
-                            csv_dir='/atlas2/u/amna/harvest_piles/train_cluster+amhara.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
+                            csv_dir='/atlas2/u/jonxuxu/datasets/train.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
                             label_name=args.label_name,
                             patch_size=args.image_size)
-#         '/atlas2/u/amna/harvest_piles/ninety_train_clust.csv'
+#         /train_paper3.csv''
+#train_unlabelled.csv
 # '/atlas2/u/amna/harvest_piles/sixty_train_clust.csv'
 # '/atlas2/u/amna/harvest_piles/two_clust.csv'
 # '/atlas2/u/amna/harvest_piles/eighty_clust.csv'
 # '/atlas2/u/amna/harvest_piles/forty_clust.csv'
         val_params = dict(datadir=args.data_path,
-                          csv_dir='/atlas2/u/amna/harvest_piles/valid_cluster+amhara.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                          csv_dir='/atlas2/u/jonxuxu/datasets/test.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
                           label_name=args.label_name,
                           patch_size=args.image_size)
+    ##test_unlabelled.csv
           #should be a fixed test set 
         test_params = dict(datadir=args.data_path,
-                           csv_dir='/atlas2/u/amna/harvest_piles/test_highlands.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
+                           csv_dir='/atlas2/u/jonxuxu/datasets/test.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
                            label_name=args.label_name,
                            patch_size=args.image_size)
-    else:
-           train_params = dict(datadir=args.data_path,
-                            csv_dir='/atlas2/u/amna/harvest_piles/train2.csv', augment=args.augment, normalize=args.normalize, clipn=args.clipn,
-                            label_name=args.label_name,
-                            patch_size=args.image_size)
-           val_params = dict(datadir=args.data_path,
-                          csv_dir='/atlas2/u/amna/harvest_piles/val2.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
-                          label_name=args.label_name,
-                          patch_size=args.image_size)
-          #should be a fixed test set 
-           test_params = dict(datadir=args.data_path,
-                           csv_dir='/atlas2/u/amna/harvest_piles/test2.csv', augment=False, normalize=args.normalize, clipn=args.clipn,
-                           label_name=args.label_name,
-                           patch_size=args.image_size)
+  
         
     train = HarvestPatches(**train_params)
 
@@ -136,18 +129,22 @@ def main(args):
         weights = make_balanced_weights(train_df)
         sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights),replacement=False)
         train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-                                                   sampler=sampler,collate_fn=train.collate_fn)
+                                                   sampler=sampler,
+                                                   collate_fn=train.collate_fn,)
     else:
         train_loader = torch.utils.data.DataLoader(train, batch_size=args.batch_size,
-                                                   shuffle=True,collate_fn=train.collate_fn,
+                                                   shuffle=True,
+                                                   collate_fn=train.collate_fn,
                                             num_workers=args.num_workers, pin_memory=True)
     validation_loader = torch.utils.data.DataLoader(val, batch_size=args.batch_size,
                                                     num_workers=args.num_workers,
-                                                    shuffle=False,collate_fn=val.collate_fn,
+                                                    shuffle=False,
+                                                     collate_fn=val.collate_fn,
                                                     pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test, batch_size=args.batch_size,
                                               num_workers=args.num_workers,
-                                              shuffle=False,collate_fn=test.collate_fn,
+                                              shuffle=False,
+                                              collate_fn=test.collate_fn,
                                               pin_memory=True)
 
     ckpt, pretrained = init_model(args.model_init, args.init_ckpt_dir, )

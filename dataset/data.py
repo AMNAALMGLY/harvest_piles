@@ -9,9 +9,9 @@ from torchvision import transforms
 
 import os
 from configs import args
-from osgeo import gdal
+# from osgeo import gdal
+import tifffile as tiff
 
-from sklearn.model_selection import train_test_split
 class HarvestPatches(Dataset):
     """
     Patches of harvest piles each
@@ -47,16 +47,20 @@ class HarvestPatches(Dataset):
         self.clipn = clipn
         self.rescale = rescale
         if self.normalize:
-             # self.means, self.stds = self.norm(datadir,csv_dir)
-             # print(self.means, self.stds)
-             if 'planet' in datadir:
-                     print('in planet norm')
-                     self.filename='planet_folder'
-                     self.means,self.stds=np.array([0.4355515,  0.32816476, 0.22282955]), np.array([0.13697046, 0.09374066, 0.07623406])
+             self.means, self.stds = self.norm(datadir,csv_dir)
+                # np.array([0.3767367 , 0.3762429 , 0.37599763]),np.array( [0.12098684 ,0.1211283  ,0.12091627])
+                                                                                             
+          #train values [0.37524492 0.37488058 0.37462986] [0.1168647  0.11716584 0.11679374]                                                                                   
+                #self.norm(datadir,csv_dir)
+            
+#              if 'planet' in datadir:
+#                      print('in planet norm')
+#                      self.filename='planet_folder'
+#                      self.means,self.stds=np.array([0.4355515,  0.32816476, 0.22282955]), np.array([0.13697046, 0.09374066, 0.07623406])
                      
-             else:
-                    self.filename='skysat_folder'
-                    self.means, self.stds=np.array( [0.40763366 ,0.3615943 , 0.31766695]),np.array( [0.1024891 , 0.08646118, 0.08351463])
+#              else:
+#                     self.filename='skysat_folder'
+#                     self.means, self.stds=np.array( [0.40763366 ,0.3615943 , 0.31766695]),np.array( [0.1024891 , 0.08646118, 0.08351463])
                     
           
              # self.means, self.stds = np.array([110.55637167  ,83.66213759,  56.63501254]),np.array([35.87896582, 24.70206238, 20.74427246])
@@ -88,17 +92,11 @@ class HarvestPatches(Dataset):
         # read the images
         # the metadata
         # the labels
-        if self.filename in self.data.columns:
-            img_filename = os.path.join(self.datadir+str(self.data.loc[idx, self.filename]),str(self.data.loc[idx, 'filename']))
-        else:
-            img_filename=os.path.join(self.datadir,str(self.data.loc[idx, 'filename']))
-        print(img_filename)
-        try:
+           try:
+            img_filename = os.path.join(self.datadir,str(self.data.loc[idx, 'filename']))
             
             image = self.load_geotiff(img_filename)
 
-       
-          
             #preprocess the image to match the desired image size required
             if self.crop:
                         image=transforms.CenterCrop((self.patch_size,self.patch_size))(image)
@@ -128,11 +126,13 @@ class HarvestPatches(Dataset):
                 labels=None
             # if not isinstance(labels, bool):
             labels = labels.astype(np.float32)
-        except:
-            return None
+
 
         
-        return image, labels
+            return image, labels
+           except: 
+            
+            return None
        
 
     def transform(self):
@@ -148,18 +148,28 @@ class HarvestPatches(Dataset):
             ])
         return aug
 
-    def load_geotiff(self, file):
+#     def load_geotiff(self, file):
 
-        ds = gdal.Open(file)
-        if not ds:
-            return None
-        r, g, b = np.array(ds.GetRasterBand(1).ReadAsArray()), np.array(ds.GetRasterBand(2).ReadAsArray()), np.array(
-            ds.GetRasterBand(3).ReadAsArray())
+#         ds = gdal.Open(file)
+#         if not ds:
+#             return None
+#         r, g, b = np.array(ds.GetRasterBand(1).ReadAsArray()), np.array(ds.GetRasterBand(2).ReadAsArray()), np.array(
+#             ds.GetRasterBand(3).ReadAsArray())
 
-        channels = [r, g, b]
-        image = np.stack(channels, axis=0)
-        image=image.transpose(1,2,0)
-        image=transforms.ToPILImage()(image)
+#         channels = [r, g, b]
+#         image = np.stack(channels, axis=0)
+#         image=image.transpose(1,2,0)
+#         image=transforms.ToPILImage()(image)
+#         return image
+    def load_geotiff(self,file):
+       
+        # img = tiff.imread(file).astype(np.float32)[:,:,:-1]
+        # img = np.reshape(img, (img.shape[2], img.shape[0], img.shape[1]))
+        # img = img / 255
+        image = cv2.imread(path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image=transforms.ToPILImage()(torch.tensor(img,))
+       
         return image
     
     def collate_fn(self, batch):
@@ -173,16 +183,20 @@ class HarvestPatches(Dataset):
          
         data = pd.read_csv(csv_dir)
        
-        files_names= os.path.join(imgs_root_dir+str(data [self.filename]),str(csv_dir[ 'filename']))
+        files= (data['filename'].apply(lambda x : os.path.join(imgs_root_dir,str(x)))).to_list()
+        
         #str(imgs_root_dir) + data[self.filename].astype(str)
-        files= filesnames.tolist()
-        print(len(files))
+
+    
      
         # img_filename = os.path.join(imgs_root_dir, str(self.data.loc[idx, 'filename']))
         # files = glob.glob(os.path.join(imgs_root_dir, '*.tif'))
         img_list = []
         i=0
         for file in files:
+            if file=="/atlas2/u/amna/harvest_piles/merged/labelled/blue_central/20230128_111404_ssc6_u0001_visual/20230128_111404_ssc6_u0001_visual_1926.tif":
+                continue
+              
             img = self.load_geotiff(str(file))
             if img is not None:
     
@@ -196,6 +210,7 @@ class HarvestPatches(Dataset):
                 # print(img.shape)
                 continue
             img_list.append(img)
+
         print('i', i)
         imgs = np.stack(img_list, axis=0)
         means = np.mean(imgs, axis=(0, 2, 3))
@@ -244,14 +259,14 @@ def generate_random_splits(dataset, val_size, test_size):
     return train, val, test
 
 
-def generate_stratified_splits(X, y, val_size, test_size, stratify=True):
-    # todo: does test set need to have the same distribution as train? No => need a fix
-    if stratify:
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=(val_size + test_size), stratify=y)
-        test_size = int(len(X) * test_size)
-        X_val, X_test, y_val, y_test = train_test_split(X_val, y_val, test_size=test_size, stratify=y_val)
-    else:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
-        X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=test_size, stratify=y_train)
+# def generate_stratified_splits(X, y, val_size, test_size, stratify=True):
+#     # todo: does test set need to have the same distribution as train? No => need a fix
+#     if stratify:
+#         X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=(val_size + test_size), stratify=y)
+#         test_size = int(len(X) * test_size)
+#         X_val, X_test, y_val, y_test = train_test_split(X_val, y_val, test_size=test_size, stratify=y_val)
+#     else:
+#         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, shuffle=True)
+#         X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=test_size, stratify=y_train)
 
-    return X_train, X_val, X_test, y_train, y_val, y_test
+#     return X_train, X_val, X_test, y_train, y_val, y_test

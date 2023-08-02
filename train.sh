@@ -53,8 +53,8 @@ export CUDA_VISIBLE_DEVICES=0,1
 export WANDB_API_KEY="f28ff8db512f61943604cf2be4d356bb738fc8ee"
 
 sbatch --output=${LOG_FOLDER}/%j.out --error=${LOG_FOLDER}/%j.err \
-    --nodes=1 --ntasks-per-node=1 --time=2-00:00:00 --mem=60G --account=atlas \
-    --partition=atlas --cpus-per-task=4 --exclude=atlas26,atlas27,atlas28\
+    --nodes=1 --ntasks-per-node=1 --time=2-00:00:00 --mem=100G --account=atlas \
+    --partition=atlas --cpus-per-task=8 --exclude=atlas26,atlas27,atlas28\
     --gres=gpu:${GPUS} --job-name=${JOBNAME} --wrap="${WRAP}"
 
 
